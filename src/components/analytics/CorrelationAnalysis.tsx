@@ -66,7 +66,7 @@ const CorrelationAnalysis: React.FC<CorrelationAnalysisProps> = ({
       <div className="text-sm">
         <p>
           <strong>Regression Equation:</strong>{" "}
-          {variableOptions.find(v => v.value === yVariable)?.label} = {regression.slope.toFixed(3)} × {variableOptions.find(v => v.value === xVariable)?.label} {regression.regression.intercept >= 0 ? "+" : ""} {regression.intercept.toFixed(3)}
+          {variableOptions.find(v => v.value === yVariable)?.label} = {regression.slope.toFixed(3)} × {variableOptions.find(v => v.value === xVariable)?.label} {regression.intercept >= 0 ? "+" : ""} {regression.intercept.toFixed(3)}
         </p>
         <p className="mt-2">
           This suggests that for each unit increase in {variableOptions.find(v => v.value === xVariable)?.label}, 
