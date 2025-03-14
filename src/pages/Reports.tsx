@@ -59,6 +59,52 @@ const Reports = () => {
   const printReport = () => {
     window.print();
   };
+  
+  // Helper function to find the best performing unit
+  const getBestPerformingUnit = () => {
+    return data.reduce((prev, current) => {
+      const prevCount = data.filter(p => p.unit === prev && p.outcome === "Improved").length / 
+                      data.filter(p => p.unit === prev).length;
+      const currCount = data.filter(p => p.unit === current.unit && p.outcome === "Improved").length / 
+                      data.filter(p => p.unit === current.unit).length;
+      return prevCount > currCount ? prev : current.unit;
+    }, data[0].unit);
+  };
+  
+  // Helper function to get the condition with the longest average length of stay
+  const getLongestStayCondition = () => {
+    const avgLOSByCondition = Object.entries(data.reduce((acc, p) => {
+      if (!acc[p.condition]) {
+        acc[p.condition] = { total: 0, count: 0 };
+      }
+      acc[p.condition].total += p.lengthOfStay;
+      acc[p.condition].count += 1;
+      return acc;
+    }, {} as Record<string, { total: number, count: number }>))
+      .map(([condition, data]) => ({ 
+        condition, 
+        avgLOS: data.total / data.count 
+      }))
+      .sort((a, b) => b.avgLOS - a.avgLOS);
+    
+    return avgLOSByCondition.length > 0 ? avgLOSByCondition[0].condition : "N/A";
+  };
+  
+  // Calculate average length of stay for improved patients
+  const getAvgLOSImproved = () => {
+    const improvedPatients = data.filter(p => p.outcome === "Improved");
+    return improvedPatients.length > 0 
+      ? Math.round(improvedPatients.reduce((sum, p) => sum + p.lengthOfStay, 0) / improvedPatients.length)
+      : 0;
+  };
+  
+  // Calculate average length of stay for non-improved patients
+  const getAvgLOSNonImproved = () => {
+    const nonImprovedPatients = data.filter(p => p.outcome !== "Improved");
+    return nonImprovedPatients.length > 0 
+      ? Math.round(nonImprovedPatients.reduce((sum, p) => sum + p.lengthOfStay, 0) / nonImprovedPatients.length)
+      : 0;
+  };
 
   return (
     <div className="space-y-6 print:p-0">
@@ -335,24 +381,11 @@ const Reports = () => {
                       suggesting that early risk assessment may help predict resource needs.
                     </li>
                     <li>
-                      Patients in the {data.reduce((prev, current) => {
-                        const prevCount = data.filter(p => p.unit === prev && p.outcome === "Improved").length / 
-                                        data.filter(p => p.unit === prev).length;
-                        const currCount = data.filter(p => p.unit === current.unit && p.outcome === "Improved").length / 
-                                        data.filter(p => p.unit === current.unit).length;
-                        return prevCount > currCount ? prev : current.unit;
-                      }, data[0].unit)} unit showed the highest improvement rates.
+                      Patients in the {getBestPerformingUnit()} unit showed the highest improvement rates.
                     </li>
                     <li>
-                      The average length of stay for improved patients is {
-                        Math.round(data.filter(p => p.outcome === "Improved")
-                          .reduce((sum, p) => sum + p.lengthOfStay, 0) / 
-                          data.filter(p => p.outcome === "Improved").length)
-                      } days, compared to {
-                        Math.round(data.filter(p => p.outcome !== "Improved")
-                          .reduce((sum, p) => sum + p.lengthOfStay, 0) / 
-                          data.filter(p => p.outcome !== "Improved").length)
-                      } days for others.
+                      The average length of stay for improved patients is {getAvgLOSImproved()} days, 
+                      compared to {getAvgLOSNonImproved()} days for others.
                     </li>
                   </ul>
                 </div>
@@ -364,35 +397,10 @@ const Reports = () => {
                       Implement standardized risk assessment procedures across all units to identify high-risk patients early.
                     </li>
                     <li>
-                      Investigate successful practices in the {data.reduce((prev, current) => {
-                        const prevCount = data.filter(p => p.unit === prev && p.outcome === "Improved").length / 
-                                        data.filter(p => p.unit === prev).length;
-                        const currCount = data.filter(p => p.unit === current.unit && p.outcome === "Improved").length / 
-                                        data.filter(p => p.unit === current.unit).length;
-                        return prevCount > currCount ? prev : current.unit;
-                      }, data[0].unit)} unit for potential implementation in other units.
+                      Investigate successful practices in the {getBestPerformingUnit()} unit for potential implementation in other units.
                     </li>
                     <li>
-                      Focus on reducing length of stay for {data.reduce((acc, p) => {
-                        acc[p.condition] = (acc[p.condition] || 0) + p.lengthOfStay;
-                        return acc;
-                      }, {} as Record<string, number>);
-                      
-                      const avgLOSByCondition = Object.entries(data.reduce((acc, p) => {
-                        if (!acc[p.condition]) {
-                          acc[p.condition] = { total: 0, count: 0 };
-                        }
-                        acc[p.condition].total += p.lengthOfStay;
-                        acc[p.condition].count += 1;
-                        return acc;
-                      }, {} as Record<string, { total: number, count: number }>))
-                        .map(([condition, data]) => ({ 
-                          condition, 
-                          avgLOS: data.total / data.count 
-                        }))
-                        .sort((a, b) => b.avgLOS - a.avgLOS)[0].condition;
-                      
-                      avgLOSByCondition} patients through standardized care pathways.
+                      Focus on reducing length of stay for {getLongestStayCondition()} patients through standardized care pathways.
                     </li>
                   </ul>
                 </div>
