@@ -38,6 +38,19 @@ export const simulateData = (
   includeComorbidities: boolean = true,
   includeMissingData: boolean = false
 ): Participant[] => {
+  console.log("simulateData called with:", { numParticipants, startDate, endDate, includeComorbidities, includeMissingData });
+  
+  // Validate input dates
+  if (!(startDate instanceof Date) || isNaN(startDate.getTime())) {
+    console.error("Invalid startDate:", startDate);
+    throw new Error("Invalid start date provided");
+  }
+  
+  if (!(endDate instanceof Date) || isNaN(endDate.getTime())) {
+    console.error("Invalid endDate:", endDate);
+    throw new Error("Invalid end date provided");
+  }
+  
   const units = ["Cardiology", "Neurology", "Oncology", "Emergency", "ICU", "General Medicine"];
   const conditions = ["Hypertension", "Diabetes", "Heart Disease", "Stroke", "Cancer", "Respiratory Disease"];
   const comorbidities = ["Obesity", "Smoking", "Alcohol Use", "Drug Use", "Depression", "Anxiety", "Asthma", "COPD", "Kidney Disease"];

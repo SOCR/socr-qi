@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useData } from "@/context/DataContext";
 import { 
   Card, 
@@ -25,13 +24,29 @@ const DataImport = () => {
   const { generateSimulatedData, clearData, importData, isDataLoaded, simulationOptions, setSimulationOptions } = useData();
   const [uploadError, setUploadError] = useState<string | null>(null);
   const { toast } = useToast();
+  const [localOptions, setLocalOptions] = useState(simulationOptions);
+
+  // Update local options when the context options change
+  useEffect(() => {
+    setLocalOptions(simulationOptions);
+  }, [simulationOptions]);
 
   const handleSimulateData = () => {
-    generateSimulatedData(simulationOptions);
-    toast({
-      title: "Data generated successfully",
-      description: `Generated data for ${simulationOptions.numParticipants} participants`,
-    });
+    try {
+      console.log("Generating data with options:", localOptions);
+      generateSimulatedData(localOptions);
+      toast({
+        title: "Data generated successfully",
+        description: `Generated data for ${localOptions.numParticipants} participants`,
+      });
+    } catch (error) {
+      console.error("Error in handleSimulateData:", error);
+      toast({
+        variant: "destructive",
+        title: "Error generating data",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+      });
+    }
   };
 
   const handleClearData = () => {
@@ -81,8 +96,8 @@ const DataImport = () => {
     reader.readAsText(file);
   };
 
-  const updateSimulationOption = (key: keyof typeof simulationOptions, value: any) => {
-    setSimulationOptions(prev => ({
+  const updateLocalOption = (key: keyof typeof localOptions, value: any) => {
+    setLocalOptions(prev => ({
       ...prev,
       [key]: value
     }));
@@ -117,15 +132,15 @@ const DataImport = () => {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <Label htmlFor="num-participants">Number of Participants: {simulationOptions.numParticipants}</Label>
+                  <Label htmlFor="num-participants">Number of Participants: {localOptions.numParticipants}</Label>
                 </div>
                 <Slider
                   id="num-participants"
                   min={10}
                   max={500}
                   step={10}
-                  value={[simulationOptions.numParticipants]}
-                  onValueChange={(values) => updateSimulationOption('numParticipants', values[0])}
+                  value={[localOptions.numParticipants]}
+                  onValueChange={(values) => updateLocalOption('numParticipants', values[0])}
                   className="py-4"
                 />
               </div>
@@ -140,14 +155,14 @@ const DataImport = () => {
                         className="w-full justify-start text-left"
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {format(simulationOptions.startDate, "PPP")}
+                        {format(localOptions.startDate, "PPP")}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                       <Calendar
                         mode="single"
-                        selected={simulationOptions.startDate}
-                        onSelect={(date) => date && updateSimulationOption('startDate', date)}
+                        selected={localOptions.startDate}
+                        onSelect={(date) => date && updateLocalOption('startDate', date)}
                         initialFocus
                       />
                     </PopoverContent>
@@ -163,14 +178,14 @@ const DataImport = () => {
                         className="w-full justify-start text-left"
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
-                        {format(new Date(simulationOptions.endDate), "PPP")}
+                        {format(localOptions.endDate, "PPP")}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                       <Calendar
                         mode="single"
-                        selected={new Date(simulationOptions.endDate)}
-                        onSelect={(date) => date && updateSimulationOption('endDate', date)}
+                        selected={localOptions.endDate}
+                        onSelect={(date) => date && updateLocalOption('endDate', date)}
                         initialFocus
                       />
                     </PopoverContent>
@@ -182,9 +197,9 @@ const DataImport = () => {
                 <div className="flex items-center space-x-2">
                   <Checkbox 
                     id="include-comorbidities" 
-                    checked={simulationOptions.includeComorbidities}
+                    checked={localOptions.includeComorbidities}
                     onCheckedChange={(checked) => 
-                      updateSimulationOption('includeComorbidities', checked === true)
+                      updateLocalOption('includeComorbidities', checked === true)
                     }
                   />
                   <Label htmlFor="include-comorbidities">Include patient comorbidities</Label>
@@ -193,9 +208,9 @@ const DataImport = () => {
                 <div className="flex items-center space-x-2">
                   <Checkbox 
                     id="include-missing-data" 
-                    checked={simulationOptions.includeMissingData}
+                    checked={localOptions.includeMissingData}
                     onCheckedChange={(checked) => 
-                      updateSimulationOption('includeMissingData', checked === true)
+                      updateLocalOption('includeMissingData', checked === true)
                     }
                   />
                   <Label htmlFor="include-missing-data">Include missing data (for realism)</Label>

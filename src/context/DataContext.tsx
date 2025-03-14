@@ -70,7 +70,16 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
   
   const [simulationOptions, setSimulationOptions] = useState<SimulationOptions>(() => {
     const storedOptions = localStorage.getItem(OPTIONS_STORAGE_KEY);
-    return storedOptions ? JSON.parse(storedOptions) : {
+    if (storedOptions) {
+      const parsedOptions = JSON.parse(storedOptions);
+      // Convert string dates back to Date objects
+      return {
+        ...parsedOptions,
+        startDate: new Date(parsedOptions.startDate),
+        endDate: new Date(parsedOptions.endDate)
+      };
+    }
+    return {
       numParticipants: 50,
       startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
       endDate: new Date(),
@@ -88,20 +97,35 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
 
   // Persist simulation options to localStorage
   useEffect(() => {
-    localStorage.setItem(OPTIONS_STORAGE_KEY, JSON.stringify(simulationOptions));
+    // Create a copy to avoid modifying the original state
+    const optionsToStore = { ...simulationOptions };
+    localStorage.setItem(OPTIONS_STORAGE_KEY, JSON.stringify(optionsToStore));
   }, [simulationOptions]);
 
   const generateSimulatedData = (options: SimulationOptions) => {
-    const simulatedData = simulateData(
-      options.numParticipants,
-      options.startDate,
-      options.endDate,
-      options.includeComorbidities,
-      options.includeMissingData
-    );
-    setData(simulatedData);
-    setIsDataLoaded(true);
-    setSimulationOptions(options);
+    try {
+      console.log("Generating simulated data with options:", options);
+      
+      // Ensure the dates are proper Date objects
+      const startDate = options.startDate instanceof Date ? options.startDate : new Date(options.startDate);
+      const endDate = options.endDate instanceof Date ? options.endDate : new Date(options.endDate);
+      
+      const simulatedData = simulateData(
+        options.numParticipants,
+        startDate,
+        endDate,
+        options.includeComorbidities,
+        options.includeMissingData
+      );
+      
+      console.log("Simulated data generated:", simulatedData.length, "participants");
+      setData(simulatedData);
+      setIsDataLoaded(true);
+      setSimulationOptions(options);
+    } catch (error) {
+      console.error("Error generating simulated data:", error);
+      alert(`Error generating data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const clearData = () => {
