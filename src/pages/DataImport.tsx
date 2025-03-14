@@ -14,27 +14,28 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/components/ui/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Link } from "react-router-dom";
 
 const DataImport = () => {
-  const { generateSimulatedData, clearData, importData, isDataLoaded } = useData();
-  const [numParticipants, setNumParticipants] = useState<number>(50);
+  const { generateSimulatedData, clearData, importData, isDataLoaded, simulationOptions, setSimulationOptions } = useData();
   const [uploadError, setUploadError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleSimulateData = () => {
-    generateSimulatedData(numParticipants);
+    generateSimulatedData(simulationOptions);
     toast({
       title: "Data generated successfully",
-      description: `Generated data for ${numParticipants} participants`,
+      description: `Generated data for ${simulationOptions.numParticipants} participants`,
     });
   };
 
   const handleClearData = () => {
     clearData();
-    toast({
-      title: "Data cleared",
-      description: "All data has been cleared from the application",
-    });
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,6 +81,13 @@ const DataImport = () => {
     reader.readAsText(file);
   };
 
+  const updateSimulationOption = (key: keyof typeof simulationOptions, value: any) => {
+    setSimulationOptions(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -109,18 +117,91 @@ const DataImport = () => {
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <Label htmlFor="num-participants">Number of Participants: {numParticipants}</Label>
+                  <Label htmlFor="num-participants">Number of Participants: {simulationOptions.numParticipants}</Label>
                 </div>
                 <Slider
                   id="num-participants"
                   min={10}
                   max={500}
                   step={10}
-                  value={[numParticipants]}
-                  onValueChange={(values) => setNumParticipants(values[0])}
+                  value={[simulationOptions.numParticipants]}
+                  onValueChange={(values) => updateSimulationOption('numParticipants', values[0])}
                   className="py-4"
                 />
               </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Data Start Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {format(simulationOptions.startDate, "PPP")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={simulationOptions.startDate}
+                        onSelect={(date) => date && updateSimulationOption('startDate', date)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Data End Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {format(new Date(simulationOptions.endDate), "PPP")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={new Date(simulationOptions.endDate)}
+                        onSelect={(date) => date && updateSimulationOption('endDate', date)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="include-comorbidities" 
+                    checked={simulationOptions.includeComorbidities}
+                    onCheckedChange={(checked) => 
+                      updateSimulationOption('includeComorbidities', checked === true)
+                    }
+                  />
+                  <Label htmlFor="include-comorbidities">Include patient comorbidities</Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="include-missing-data" 
+                    checked={simulationOptions.includeMissingData}
+                    onCheckedChange={(checked) => 
+                      updateSimulationOption('includeMissingData', checked === true)
+                    }
+                  />
+                  <Label htmlFor="include-missing-data">Include missing data (for realism)</Label>
+                </div>
+              </div>
+              
               <Button onClick={handleSimulateData} className="w-full">
                 Generate Data
               </Button>
@@ -170,10 +251,10 @@ const DataImport = () => {
             </p>
             <div className="flex gap-3 mt-4">
               <Button variant="outline" asChild>
-                <a href="/data-summary">Go to Data Summary</a>
+                <Link to="/data-summary">Go to Data Summary</Link>
               </Button>
               <Button variant="outline" asChild>
-                <a href="/data-visualization">Go to Data Visualization</a>
+                <Link to="/data-visualization">Go to Data Visualization</Link>
               </Button>
             </div>
           </CardContent>

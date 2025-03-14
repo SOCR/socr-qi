@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NoDataMessage from "@/components/NoDataMessage";
+import MissingnessAnalysis from "@/components/MissingnessAnalysis";
+import TemporalTrends from "@/components/TemporalTrends";
 
 const DataSummary = () => {
   const { data, isDataLoaded } = useData();
@@ -116,9 +118,10 @@ const DataSummary = () => {
       </div>
 
       <Tabs defaultValue="demographics">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="demographics">Demographics</TabsTrigger>
           <TabsTrigger value="clinical">Clinical</TabsTrigger>
+          <TabsTrigger value="advanced">Advanced Analysis</TabsTrigger>
         </TabsList>
 
         <TabsContent value="demographics">
@@ -230,6 +233,13 @@ const DataSummary = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="advanced">
+          <div className="space-y-6">
+            <MissingnessAnalysis />
+            <TemporalTrends />
           </div>
         </TabsContent>
       </Tabs>

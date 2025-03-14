@@ -26,9 +26,21 @@ const formatDate = (date: Date): string => {
   return date.toISOString().split('T')[0];
 };
 
-export const simulateData = (numParticipants: number): Participant[] => {
+// Should this field have missing data?
+const shouldBeMissing = (missingProbability: number): boolean => {
+  return Math.random() < missingProbability;
+};
+
+export const simulateData = (
+  numParticipants: number, 
+  startDate: Date = new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
+  endDate: Date = new Date(),
+  includeComorbidities: boolean = true,
+  includeMissingData: boolean = false
+): Participant[] => {
   const units = ["Cardiology", "Neurology", "Oncology", "Emergency", "ICU", "General Medicine"];
   const conditions = ["Hypertension", "Diabetes", "Heart Disease", "Stroke", "Cancer", "Respiratory Disease"];
+  const comorbidities = ["Obesity", "Smoking", "Alcohol Use", "Drug Use", "Depression", "Anxiety", "Asthma", "COPD", "Kidney Disease"];
   const outcomes = ["Improved", "Stable", "Deteriorated", "Discharged", "Transferred", "Deceased"];
   const genders = ["Male", "Female", "Other"];
   const treatments = [
@@ -38,10 +50,6 @@ export const simulateData = (numParticipants: number): Participant[] => {
   ];
 
   const participants: Participant[] = [];
-
-  const today = new Date();
-  const oneYearAgo = new Date();
-  oneYearAgo.setFullYear(today.getFullYear() - 1);
 
   for (let i = 0; i < numParticipants; i++) {
     const participantId = `P${(i + 1).toString().padStart(4, '0')}`;
@@ -68,12 +76,20 @@ export const simulateData = (numParticipants: number): Participant[] => {
     const lengthOfStay = getRandomInt(1, 30);
     const readmissionRisk = getRandomNumber(0, 100);
     
+    // Generate participant comorbidities if enabled
+    const participantComorbidities = includeComorbidities 
+      ? Array.from({ length: getRandomInt(0, 3) }, () => getRandomElement(comorbidities))
+      : [];
+    
+    // Remove duplicates from comorbidities
+    const uniqueComorbidities = [...new Set(participantComorbidities)];
+    
     // Generate 3-10 measurements for each participant
     const numMeasurements = getRandomInt(3, 10);
     const measurements = [];
     
     // Admission date
-    const admissionDate = getRandomDate(oneYearAgo, today);
+    const admissionDate = getRandomDate(startDate, endDate);
     
     for (let j = 0; j < numMeasurements; j++) {
       // Create dates that progress from admission date
@@ -91,14 +107,17 @@ export const simulateData = (numParticipants: number): Participant[] => {
       // Add some variation based on day from admission
       const variation = j / numMeasurements;
       
+      // Introduce missing data if enabled
+      const hasMissingData = includeMissingData;
+      
       measurements.push({
         date: formatDate(measurementDate),
-        bloodPressureSystolic: Math.round(baseBloodPressureSystolic * (1 - variation * 0.1)),
-        bloodPressureDiastolic: Math.round(baseBloodPressureDiastolic * (1 - variation * 0.1)),
-        heartRate: Math.round(baseHeartRate * (1 - variation * 0.05)),
-        temperature: parseFloat((baseTemperature * (1 - variation * 0.03)).toFixed(1)),
-        oxygenSaturation: Math.min(100, Math.round(baseOxygenSaturation * (1 + variation * 0.05))),
-        pain: Math.max(0, Math.round(basePain * (1 - variation * 0.2))),
+        bloodPressureSystolic: hasMissingData && shouldBeMissing(0.05) ? null : Math.round(baseBloodPressureSystolic * (1 - variation * 0.1)),
+        bloodPressureDiastolic: hasMissingData && shouldBeMissing(0.05) ? null : Math.round(baseBloodPressureDiastolic * (1 - variation * 0.1)),
+        heartRate: hasMissingData && shouldBeMissing(0.05) ? null : Math.round(baseHeartRate * (1 - variation * 0.05)),
+        temperature: hasMissingData && shouldBeMissing(0.05) ? null : parseFloat((baseTemperature * (1 - variation * 0.03)).toFixed(1)),
+        oxygenSaturation: hasMissingData && shouldBeMissing(0.05) ? null : Math.min(100, Math.round(baseOxygenSaturation * (1 + variation * 0.05))),
+        pain: hasMissingData && shouldBeMissing(0.05) ? null : Math.max(0, Math.round(basePain * (1 - variation * 0.2))),
       });
     }
     
@@ -128,7 +147,7 @@ export const simulateData = (numParticipants: number): Participant[] => {
       });
     }
     
-    participants.push({
+    const participant: Participant = {
       id: participantId,
       age,
       gender,
@@ -140,7 +159,14 @@ export const simulateData = (numParticipants: number): Participant[] => {
       readmissionRisk,
       measurements,
       treatments: participantTreatments,
-    });
+    };
+    
+    // Add comorbidities if enabled
+    if (includeComorbidities) {
+      participant.comorbidities = uniqueComorbidities;
+    }
+    
+    participants.push(participant);
   }
   
   return participants;
