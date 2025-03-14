@@ -17,75 +17,10 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ScatterChart } from "./ScatterChart";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-// Simple analytics functions
-const calculateCorrelation = (x: number[], y: number[]): number => {
-  const n = x.length;
-  if (n === 0) return 0;
-  
-  const sumX = x.reduce((a, b) => a + b, 0);
-  const sumY = y.reduce((a, b) => a + b, 0);
-  const sumXY = x.reduce((acc, val, i) => acc + val * y[i], 0);
-  const sumXSq = x.reduce((acc, val) => acc + val * val, 0);
-  const sumYSq = y.reduce((acc, val) => acc + val * val, 0);
-  
-  const numerator = n * sumXY - sumX * sumY;
-  const denominator = Math.sqrt((n * sumXSq - sumX * sumX) * (n * sumYSq - sumY * sumY));
-  
-  return denominator === 0 ? 0 : numerator / denominator;
-};
-
-// Simple linear regression
-const linearRegression = (x: number[], y: number[]) => {
-  const n = x.length;
-  if (n === 0) return { slope: 0, intercept: 0 };
-  
-  const sumX = x.reduce((a, b) => a + b, 0);
-  const sumY = y.reduce((a, b) => a + b, 0);
-  const sumXY = x.reduce((acc, val, i) => acc + val * y[i], 0);
-  const sumXSq = x.reduce((acc, val) => acc + val * val, 0);
-  
-  const slope = (n * sumXY - sumX * sumY) / (n * sumXSq - sumX * sumX);
-  const intercept = (sumY - slope * sumX) / n;
-  
-  return { slope, intercept };
-};
-
-// K-means clustering (simplified)
-const kMeansClustering = (data: any[], k: number, features: string[]) => {
-  // Extract feature values
-  const featureValues = data.map(item => 
-    features.map(feature => item[feature])
-  );
-  
-  // Randomly initialize centroids
-  let centroids = Array.from({ length: k }, () => {
-    const randomIndex = Math.floor(Math.random() * featureValues.length);
-    return featureValues[randomIndex];
-  });
-  
-  // Assign points to clusters
-  const assignments = featureValues.map(point => {
-    const distances = centroids.map(centroid => 
-      Math.sqrt(
-        features.reduce((sum, _, i) => 
-          sum + Math.pow(point[i] - centroid[i], 2), 0
-        )
-      )
-    );
-    return distances.indexOf(Math.min(...distances));
-  });
-  
-  // Return cluster assignments and centroid locations
-  return {
-    assignments,
-    centroids
-  };
-};
+import CorrelationAnalysis from "./analytics/CorrelationAnalysis";
+import ClusteringAnalysis from "./analytics/ClusteringAnalysis";
 
 const AdvancedAnalytics = () => {
   const { data } = useData();
@@ -107,74 +42,23 @@ const AdvancedAnalytics = () => {
   
   const runAnalysis = () => {
     if (analysisType === "correlation") {
-      // Extract the variables from data
-      const xValues = data.map(p => p[xVariable]);
-      const yValues = data.map(p => p[yVariable]);
-      
-      // Run correlation and regression
-      const correlationValue = calculateCorrelation(xValues, yValues);
-      const regression = linearRegression(xValues, yValues);
-      
-      // Prepare scatter plot data
-      const scatterData = data.map(p => ({
-        x: p[xVariable],
-        y: p[yVariable],
-        id: p.id,
-        outcome: p.outcome
-      }));
-      
-      // Generate regression line points
-      const minX = Math.min(...xValues);
-      const maxX = Math.max(...xValues);
-      const regressionPoints = [
-        { x: minX, y: regression.slope * minX + regression.intercept },
-        { x: maxX, y: regression.slope * maxX + regression.intercept }
-      ];
-      
       setResults({
         type: "correlation",
-        correlationValue,
-        regression,
-        scatterData,
-        regressionPoints,
         xVariable,
         yVariable
       });
       
       toast({
         title: "Analysis Complete",
-        description: `Correlation between ${xVariable} and ${yVariable}: ${correlationValue.toFixed(3)}`
+        description: `Correlation analysis between ${xVariable} and ${yVariable} completed`
       });
     } 
     else if (analysisType === "clustering") {
-      // Extract features for clustering
-      const clusterData = data.map(p => ({
-        id: p.id,
-        [clusterVariable1]: p[clusterVariable1],
-        [clusterVariable2]: p[clusterVariable2],
-        outcome: p.outcome
-      }));
-      
-      // Run k-means clustering
-      const clusters = kMeansClustering(
-        clusterData, 
-        numClusters,
-        [clusterVariable1, clusterVariable2]
-      );
-      
-      // Add cluster assignments to data points
-      const clusterResults = clusterData.map((point, i) => ({
-        ...point,
-        cluster: clusters.assignments[i]
-      }));
-      
       setResults({
         type: "clustering",
-        clusters: clusterResults,
-        numClusters,
         variable1: clusterVariable1,
         variable2: clusterVariable2,
-        centroids: clusters.centroids
+        numClusters,
       });
       
       toast({
@@ -317,76 +201,22 @@ const AdvancedAnalytics = () => {
         {results && (
           <div className="mt-8 space-y-6">
             {results.type === "correlation" && (
-              <>
-                <Alert>
-                  <AlertTitle>Correlation Analysis Results</AlertTitle>
-                  <AlertDescription>
-                    The correlation between {variableOptions.find(v => v.value === results.xVariable)?.label} and {" "}
-                    {variableOptions.find(v => v.value === results.yVariable)?.label} is{" "}
-                    <strong>{results.correlationValue.toFixed(3)}</strong>.
-                    {Math.abs(results.correlationValue) > 0.7 && " This indicates a strong relationship."}
-                    {Math.abs(results.correlationValue) > 0.4 && Math.abs(results.correlationValue) <= 0.7 && " This indicates a moderate relationship."}
-                    {Math.abs(results.correlationValue) <= 0.4 && " This indicates a weak relationship."}
-                  </AlertDescription>
-                </Alert>
-                
-                <ScatterChart
-                  data={results.scatterData}
-                  xAxis={variableOptions.find(v => v.value === results.xVariable)?.label || results.xVariable}
-                  yAxis={variableOptions.find(v => v.value === results.yVariable)?.label || results.yVariable}
-                  regressionLine={results.regressionPoints}
-                  height={350}
-                />
-                
-                <div className="text-sm">
-                  <p>
-                    <strong>Regression Equation:</strong>{" "}
-                    {variableOptions.find(v => v.value === results.yVariable)?.label} = {results.regression.slope.toFixed(3)} × {variableOptions.find(v => v.value === results.xVariable)?.label} {results.regression.intercept >= 0 ? "+" : ""} {results.regression.intercept.toFixed(3)}
-                  </p>
-                  <p className="mt-2">
-                    This suggests that for each unit increase in {variableOptions.find(v => v.value === results.xVariable)?.label}, 
-                    {variableOptions.find(v => v.value === results.yVariable)?.label} changes by approximately {results.regression.slope.toFixed(3)} units.
-                  </p>
-                </div>
-              </>
+              <CorrelationAnalysis 
+                data={data}
+                xVariable={results.xVariable}
+                yVariable={results.yVariable}
+                variableOptions={variableOptions}
+              />
             )}
             
             {results.type === "clustering" && (
-              <>
-                <Alert>
-                  <AlertTitle>Clustering Results</AlertTitle>
-                  <AlertDescription>
-                    K-means clustering identified {results.numClusters} distinct patient groups based on {" "}
-                    {variableOptions.find(v => v.value === results.variable1)?.label} and{" "}
-                    {variableOptions.find(v => v.value === results.variable2)?.label}.
-                  </AlertDescription>
-                </Alert>
-                
-                <ScatterChart
-                  data={results.clusters.map((p: any) => ({
-                    x: p[results.variable1],
-                    y: p[results.variable2],
-                    id: p.id,
-                    outcome: p.outcome,
-                    cluster: p.cluster
-                  }))}
-                  xAxis={variableOptions.find(v => v.value === results.variable1)?.label || results.variable1}
-                  yAxis={variableOptions.find(v => v.value === results.variable2)?.label || results.variable2}
-                  colorByCluster={true}
-                  height={350}
-                />
-                
-                <div className="text-sm">
-                  <p>
-                    <strong>Cluster Analysis:</strong> The scatter plot shows distinct patient clusters based on 
-                    the selected variables. These clusters may represent different patient phenotypes or risk groups.
-                  </p>
-                  <p className="mt-2">
-                    Consider investigating what clinical characteristics are common within each cluster, 
-                    as this may provide insights for targeted quality improvement interventions.
-                  </p>
-                </div>
-              </>
+              <ClusteringAnalysis
+                data={data}
+                variable1={results.variable1}
+                variable2={results.variable2}
+                numClusters={results.numClusters}
+                variableOptions={variableOptions}
+              />
             )}
           </div>
         )}

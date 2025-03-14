@@ -12,6 +12,7 @@ import {
   Label,
   Line
 } from "recharts";
+import { CustomTooltip } from "./ChartTooltip";
 
 interface ScatterChartProps {
   data: any[];
@@ -31,25 +32,6 @@ const OUTCOME_COLORS = {
   "Deceased": "#F44336"
 };
 
-const CustomTooltip = ({ active, payload }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white p-2 border rounded shadow-sm text-xs">
-        <p className="font-medium">{`ID: ${payload[0].payload.id}`}</p>
-        <p>{`X: ${payload[0].value.toFixed(2)}`}</p>
-        <p>{`Y: ${payload[0].payload.y.toFixed(2)}`}</p>
-        {payload[0].payload.outcome && (
-          <p>{`Outcome: ${payload[0].payload.outcome}`}</p>
-        )}
-        {payload[0].payload.cluster !== undefined && (
-          <p>{`Cluster: ${payload[0].payload.cluster + 1}`}</p>
-        )}
-      </div>
-    );
-  }
-  return null;
-};
-
 export const ScatterChart: React.FC<ScatterChartProps> = ({
   data,
   xAxis,
@@ -59,38 +41,7 @@ export const ScatterChart: React.FC<ScatterChartProps> = ({
   height = 300
 }) => {
   // Group data by outcome or cluster
-  const getGroupedData = () => {
-    if (colorByCluster) {
-      // Group by cluster
-      const clusters: Record<string, any[]> = {};
-      data.forEach(item => {
-        const clusterKey = `Cluster ${item.cluster + 1}`;
-        if (!clusters[clusterKey]) {
-          clusters[clusterKey] = [];
-        }
-        clusters[clusterKey].push(item);
-      });
-      return Object.entries(clusters).map(([name, points]) => ({
-        name,
-        data: points
-      }));
-    } else {
-      // Group by outcome
-      const outcomes: Record<string, any[]> = {};
-      data.forEach(item => {
-        if (!outcomes[item.outcome]) {
-          outcomes[item.outcome] = [];
-        }
-        outcomes[item.outcome].push(item);
-      });
-      return Object.entries(outcomes).map(([name, points]) => ({
-        name,
-        data: points
-      }));
-    }
-  };
-
-  const groupedData = getGroupedData();
+  const groupedData = useGroupedData(data, colorByCluster);
 
   return (
     <div className="w-full" style={{ height: `${height}px` }}>
@@ -149,3 +100,39 @@ export const ScatterChart: React.FC<ScatterChartProps> = ({
     </div>
   );
 };
+
+// Extract the data grouping logic to a custom hook
+const useGroupedData = (data: any[], colorByCluster: boolean) => {
+  return React.useMemo(() => {
+    if (colorByCluster) {
+      // Group by cluster
+      const clusters: Record<string, any[]> = {};
+      data.forEach(item => {
+        const clusterKey = `Cluster ${item.cluster + 1}`;
+        if (!clusters[clusterKey]) {
+          clusters[clusterKey] = [];
+        }
+        clusters[clusterKey].push(item);
+      });
+      return Object.entries(clusters).map(([name, points]) => ({
+        name,
+        data: points
+      }));
+    } else {
+      // Group by outcome
+      const outcomes: Record<string, any[]> = {};
+      data.forEach(item => {
+        if (!outcomes[item.outcome]) {
+          outcomes[item.outcome] = [];
+        }
+        outcomes[item.outcome].push(item);
+      });
+      return Object.entries(outcomes).map(([name, points]) => ({
+        name,
+        data: points
+      }));
+    }
+  }, [data, colorByCluster]);
+};
+
+export default ScatterChart;
