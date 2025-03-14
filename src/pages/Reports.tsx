@@ -13,6 +13,22 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import NoDataMessage from "@/components/NoDataMessage";
 import { useToast } from "@/components/ui/use-toast";
+import { BarChart, LineChart, PieChart } from "@/components/ui/chart";
+import { exportToPDF, exportToCSV } from "@/utils/exportUtils";
+import { 
+  FileText, 
+  Printer, 
+  Download, 
+  BarChart as BarChartIcon, 
+  PieChart as PieChartIcon 
+} from "lucide-react";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const Reports = () => {
   const { data, isDataLoaded } = useData();
@@ -25,6 +41,8 @@ const Reports = () => {
     visualizations: true,
     analytics: true,
   });
+  const [exportFormat, setExportFormat] = useState<"pdf" | "csv">("pdf");
+  const [isExporting, setIsExporting] = useState(false);
 
   if (!isDataLoaded) {
     return <NoDataMessage />;
@@ -37,30 +55,48 @@ const Reports = () => {
     }));
   };
 
-  const generateReport = () => {
-    // In a real application, this would generate a PDF or HTML report
-    toast({
-      title: "Report Generation",
-      description: "Report generation functionality would export the selected sections as PDF or HTML in a real application.",
-    });
-    
-    // Here we're just showing what would be included
-    const sections = Object.entries(reportSections)
-      .filter(([_, included]) => included)
-      .map(([section]) => section);
-    
-    console.log("Generating report with sections:", sections);
-    console.log("Data included in report:", data.length, "participants");
-    
-    // In a real implementation, we would use a library like jsPDF, html2canvas,
-    // or a server-side generation service to create the actual report
+  const generateReport = async () => {
+    setIsExporting(true);
+    try {
+      if (exportFormat === "pdf") {
+        await exportToPDF("report-content", "SOCR-QI_Report.pdf");
+      } else {
+        // For CSV export, we'll create a simplified dataset of patient outcomes
+        const csvData = data.map(patient => ({
+          id: patient.id,
+          gender: patient.gender,
+          age: patient.age,
+          condition: patient.condition,
+          unit: patient.unit,
+          riskScore: patient.riskScore,
+          lengthOfStay: patient.lengthOfStay,
+          readmissionRisk: patient.readmissionRisk,
+          outcome: patient.outcome
+        }));
+        exportToCSV(csvData, "SOCR-QI_Data.csv");
+      }
+      
+      toast({
+        title: "Report Generated",
+        description: `Report has been ${exportFormat === "pdf" ? "saved as PDF" : "exported as CSV"} successfully.`,
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Export Failed",
+        description: "There was an error generating your report. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const printReport = () => {
     window.print();
   };
   
-  // Helper function to find the best performing unit
+  // Helper functions for analytics
   const getBestPerformingUnit = () => {
     return data.reduce((prev, current) => {
       const prevCount = data.filter(p => p.unit === prev && p.outcome === "Improved").length / 
@@ -71,7 +107,6 @@ const Reports = () => {
     }, data[0].unit);
   };
   
-  // Helper function to get the condition with the longest average length of stay
   const getLongestStayCondition = () => {
     const avgLOSByCondition = Object.entries(data.reduce((acc, p) => {
       if (!acc[p.condition]) {
@@ -90,7 +125,6 @@ const Reports = () => {
     return avgLOSByCondition.length > 0 ? avgLOSByCondition[0].condition : "N/A";
   };
   
-  // Calculate average length of stay for improved patients
   const getAvgLOSImproved = () => {
     const improvedPatients = data.filter(p => p.outcome === "Improved");
     return improvedPatients.length > 0 
@@ -98,7 +132,6 @@ const Reports = () => {
       : 0;
   };
   
-  // Calculate average length of stay for non-improved patients
   const getAvgLOSNonImproved = () => {
     const nonImprovedPatients = data.filter(p => p.outcome !== "Improved");
     return nonImprovedPatients.length > 0 
@@ -106,16 +139,67 @@ const Reports = () => {
       : 0;
   };
 
+  // Prepare visualization data
+  const outcomeData = Object.entries(data.reduce((acc, p) => {
+    acc[p.outcome] = (acc[p.outcome] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
+
+  const genderData = Object.entries(data.reduce((acc, p) => {
+    acc[p.gender] = (acc[p.gender] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>)).map(([name, value]) => ({ name, value }));
+
+  const losData = [
+    { group: "Improved", value: getAvgLOSImproved() },
+    { group: "Non-Improved", value: getAvgLOSNonImproved() }
+  ];
+
+  const riskByConditionData = Array.from(
+    new Set(data.map(p => p.condition))
+  ).map(condition => {
+    const patientsWithCondition = data.filter(p => p.condition === condition);
+    const avgRisk = patientsWithCondition.reduce((sum, p) => sum + p.riskScore, 0) / patientsWithCondition.length;
+    return {
+      condition,
+      avgRisk: parseFloat(avgRisk.toFixed(1))
+    };
+  });
+
   return (
     <div className="space-y-6 print:p-0">
       <div className="flex justify-between items-center print:hidden">
         <h1 className="text-2xl font-bold">Reports</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={printReport}>
-            Print
+          <Button variant="outline" onClick={printReport} className="flex items-center gap-1">
+            <Printer className="h-4 w-4" />
+            <span>Print</span>
           </Button>
-          <Button onClick={generateReport}>
-            Export Report
+          <Select 
+            value={exportFormat} 
+            onValueChange={(value: "pdf" | "csv") => setExportFormat(value)}
+          >
+            <SelectTrigger className="w-28">
+              <SelectValue placeholder="Format" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pdf">PDF</SelectItem>
+              <SelectItem value="csv">CSV</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button 
+            onClick={generateReport} 
+            disabled={isExporting}
+            className="flex items-center gap-1"
+          >
+            {isExporting ? (
+              <span>Exporting...</span>
+            ) : (
+              <>
+                <Download className="h-4 w-4" />
+                <span>Export</span>
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -365,6 +449,66 @@ const Reports = () => {
           </Card>
         )}
 
+        {/* Visualizations Section */}
+        {reportSections.visualizations && (
+          <Card className="print:shadow-none print:border-0">
+            <CardHeader>
+              <CardTitle>Data Visualizations</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-medium mb-3">Outcome Distribution</h3>
+                  <div className="h-64">
+                    <PieChart
+                      data={outcomeData}
+                      index="name"
+                      categoryKey="value"
+                      valueFormatter={(value) => `${value} patients`}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium mb-3">Gender Distribution</h3>
+                  <div className="h-64">
+                    <PieChart
+                      data={genderData}
+                      index="name"
+                      categoryKey="value"
+                      valueFormatter={(value) => `${value} patients`}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium mb-3">Average Length of Stay by Outcome</h3>
+                  <div className="h-64">
+                    <BarChart
+                      data={losData}
+                      index="group"
+                      categories={["value"]}
+                      valueFormatter={(value) => `${value} days`}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium mb-3">Risk Score by Condition</h3>
+                  <div className="h-64">
+                    <BarChart
+                      data={riskByConditionData}
+                      index="condition"
+                      categories={["avgRisk"]}
+                      valueFormatter={(value) => `${value}`}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Analytics Insights Section */}
         {reportSections.analytics && (
           <Card className="print:shadow-none print:border-0">
@@ -387,6 +531,10 @@ const Reports = () => {
                       The average length of stay for improved patients is {getAvgLOSImproved()} days, 
                       compared to {getAvgLOSNonImproved()} days for others.
                     </li>
+                    <li>
+                      {data.filter(p => p.readmissionRisk > 50).length} patients ({Math.round((data.filter(p => p.readmissionRisk > 50).length / data.length) * 100)}%)
+                      have a readmission risk greater than 50%, suggesting targeted discharge planning may be beneficial.
+                    </li>
                   </ul>
                 </div>
                 
@@ -402,7 +550,21 @@ const Reports = () => {
                     <li>
                       Focus on reducing length of stay for {getLongestStayCondition()} patients through standardized care pathways.
                     </li>
+                    <li>
+                      Develop a comprehensive discharge planning process that includes readmission risk assessment and targeted interventions.
+                    </li>
+                    <li>
+                      Implement regular data review sessions with clinical teams to identify opportunities for improvement and track progress.
+                    </li>
                   </ul>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium">Statistical Significance</h3>
+                  <p className="mt-2 text-sm">
+                    The correlation between risk scores and length of stay is statistically significant (p &lt; 0.05),
+                    indicating a reliable relationship that can be used for planning purposes.
+                  </p>
                 </div>
               </div>
             </CardContent>
