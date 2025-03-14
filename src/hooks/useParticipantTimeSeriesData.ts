@@ -19,21 +19,39 @@ export const useParticipantTimeSeriesData = (
     
     selectedParticipants.forEach(participant => {
       participant.measurements.forEach(measurement => {
-        allMeasurements.push({
+        // Create a unique date-participant compound key to avoid overwriting
+        const dateStr = new Date(measurement.date).toISOString().split('T')[0];
+        const entry = {
           date: measurement.date,
+          displayDate: dateStr,
           participantId: participant.id,
+          participantInfo: `${participant.id} (${participant.condition})`,
           systolic: measurement.bloodPressureSystolic,
           diastolic: measurement.bloodPressureDiastolic,
           heartRate: measurement.heartRate,
           oxygenSaturation: measurement.oxygenSaturation,
           temperature: measurement.temperature,
-          // Add a suffix to make each participant's data distinguishable in charts
-          [`systolic_${participant.id}`]: measurement.bloodPressureSystolic,
-          [`diastolic_${participant.id}`]: measurement.bloodPressureDiastolic,
-          [`heartRate_${participant.id}`]: measurement.heartRate,
-          [`oxygenSaturation_${participant.id}`]: measurement.oxygenSaturation,
-          [`temperature_${participant.id}`]: measurement.temperature,
+        };
+        
+        // Add participant-specific fields for charting
+        selectedParticipantIds.forEach(id => {
+          if (id === participant.id) {
+            entry[`systolic_${id}`] = measurement.bloodPressureSystolic;
+            entry[`diastolic_${id}`] = measurement.bloodPressureDiastolic;
+            entry[`heartRate_${id}`] = measurement.heartRate;
+            entry[`oxygenSaturation_${id}`] = measurement.oxygenSaturation;
+            entry[`temperature_${id}`] = measurement.temperature;
+          } else {
+            // Set null for other participants' data points
+            entry[`systolic_${id}`] = null;
+            entry[`diastolic_${id}`] = null;
+            entry[`heartRate_${id}`] = null;
+            entry[`oxygenSaturation_${id}`] = null;
+            entry[`temperature_${id}`] = null;
+          }
         });
+        
+        allMeasurements.push(entry);
       });
     });
 

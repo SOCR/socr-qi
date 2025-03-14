@@ -11,6 +11,14 @@ import {
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { 
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
 
 interface MultiParticipantChartControlsProps {
   data: Participant[];
@@ -52,43 +60,53 @@ const MultiParticipantChartControls: React.FC<MultiParticipantChartControlsProps
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
         <div className="w-full sm:w-1/2">
-          <Label htmlFor="participant-select">Add Participant</Label>
-          <Select 
-            onValueChange={(value) => toggleParticipant(value)}
-            value=""
-          >
-            <SelectTrigger id="participant-select">
-              <SelectValue placeholder="Select a participant" />
-            </SelectTrigger>
-            <SelectContent>
-              {data.map((participant) => (
-                <SelectItem 
-                  key={participant.id} 
-                  value={participant.id}
-                  disabled={selectedParticipantIds.includes(participant.id)}
+          <Label htmlFor="participant-select">Select Participants</Label>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full justify-between">
+                {selectedParticipantIds.length === 0 
+                  ? "Select participants" 
+                  : `${selectedParticipantIds.length} participant(s) selected`}
+                <span>▼</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-full max-h-[300px] overflow-auto">
+              {data.slice(0, 20).map((participant) => (
+                <DropdownMenuCheckboxItem
+                  key={participant.id}
+                  checked={selectedParticipantIds.includes(participant.id)}
+                  onCheckedChange={() => toggleParticipant(participant.id)}
                 >
                   {participant.id} - {participant.condition}
-                </SelectItem>
+                </DropdownMenuCheckboxItem>
               ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={selectAll}
-          >
-            Select Sample
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={clearAll}
-          >
-            Clear All
-          </Button>
+              {data.length > 20 && (
+                <div className="px-2 py-1 text-xs text-muted-foreground">
+                  Showing 20 of {data.length} participants
+                </div>
+              )}
+              <DropdownMenuSeparator />
+              <div className="flex p-2 gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={selectAll}
+                >
+                  Select Sample
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={clearAll}
+                >
+                  Clear All
+                </Button>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
