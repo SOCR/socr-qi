@@ -23,6 +23,8 @@ interface LineChartProps {
   valueFormatter?: (value: number) => string;
   title?: string;
   height?: number;
+  customTooltip?: React.ComponentType<any>;
+  customTooltipParams?: Record<string, any>;
 }
 
 export const LineChart: React.FC<LineChartProps> = ({
@@ -32,7 +34,9 @@ export const LineChart: React.FC<LineChartProps> = ({
   colors = COLORS,
   valueFormatter = (value) => String(value),
   title,
-  height
+  height,
+  customTooltip,
+  customTooltipParams = {}
 }) => {
   return (
     <ChartContainer title={title} height={height}>
@@ -40,7 +44,11 @@ export const LineChart: React.FC<LineChartProps> = ({
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey={index} />
         <YAxis tickFormatter={valueFormatter} />
-        <Tooltip formatter={valueFormatter} />
+        {customTooltip ? (
+          <Tooltip content={<customTooltip formatter={valueFormatter} {...customTooltipParams} />} />
+        ) : (
+          <Tooltip formatter={valueFormatter} />
+        )}
         <Legend />
         {categories.map((category, i) => (
           <Line
@@ -49,6 +57,8 @@ export const LineChart: React.FC<LineChartProps> = ({
             dataKey={category}
             stroke={colors[i % colors.length]}
             activeDot={{ r: 8 }}
+            name={category}
+            connectNulls={true}
           />
         ))}
       </RechartsLineChart>

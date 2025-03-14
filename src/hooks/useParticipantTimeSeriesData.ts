@@ -14,48 +14,73 @@ export const useParticipantTimeSeriesData = (
       selectedParticipantIds.includes(p.id)
     );
     
-    // Combine and process all measurements
-    const allMeasurements: any[] = [];
+    // Create a map of all dates from all participants to ensure we have data points for every date
+    const dateMap = new Map<string, any>();
     
+    // First, collect all unique dates across all selected participants
     selectedParticipants.forEach(participant => {
       participant.measurements.forEach(measurement => {
-        // Create a unique date-participant compound key to avoid overwriting
         const dateStr = new Date(measurement.date).toISOString().split('T')[0];
-        const entry = {
-          date: measurement.date,
-          displayDate: dateStr,
-          participantId: participant.id,
-          participantInfo: `${participant.id} (${participant.condition})`,
-          systolic: measurement.bloodPressureSystolic,
-          diastolic: measurement.bloodPressureDiastolic,
-          heartRate: measurement.heartRate,
-          oxygenSaturation: measurement.oxygenSaturation,
-          temperature: measurement.temperature,
-        };
-        
-        // Add participant-specific fields for charting
-        selectedParticipantIds.forEach(id => {
-          if (id === participant.id) {
-            entry[`systolic_${id}`] = measurement.bloodPressureSystolic;
-            entry[`diastolic_${id}`] = measurement.bloodPressureDiastolic;
-            entry[`heartRate_${id}`] = measurement.heartRate;
-            entry[`oxygenSaturation_${id}`] = measurement.oxygenSaturation;
-            entry[`temperature_${id}`] = measurement.temperature;
-          } else {
-            // Set null for other participants' data points
-            entry[`systolic_${id}`] = null;
-            entry[`diastolic_${id}`] = null;
-            entry[`heartRate_${id}`] = null;
-            entry[`oxygenSaturation_${id}`] = null;
-            entry[`temperature_${id}`] = null;
-          }
-        });
-        
-        allMeasurements.push(entry);
+        if (!dateMap.has(dateStr)) {
+          dateMap.set(dateStr, {
+            date: measurement.date,
+            displayDate: dateStr,
+          });
+        }
       });
     });
+    
+    // Then, for each participant, fill in their measurements for each date
+    selectedParticipants.forEach(participant => {
+      const measurementsByDate = new Map<string, any>();
+      
+      // First, organize measurements by date
+      participant.measurements.forEach(measurement => {
+        const dateStr = new Date(measurement.date).toISOString().split('T')[0];
+        measurementsByDate.set(dateStr, measurement);
+      });
+      
+      // Then, for each date in our map, add this participant's data
+      dateMap.forEach((entry, dateStr) => {
+        const measurement = measurementsByDate.get(dateStr);
+        
+        // Add participant-specific fields
+        if (measurement) {
+          // Add base data fields if they don't exist
+          if (!entry.systolic) entry.systolic = null;
+          if (!entry.diastolic) entry.diastolic = null;
+          if (!entry.heartRate) entry.heartRate = null;
+          if (!entry.oxygenSaturation) entry.oxygenSaturation = null;
+          if (!entry.temperature) entry.temperature = null;
 
-    // Sort by date
+          // If this is the participant's measurement, use it
+          if (participant.id === selectedParticipantIds[0] && selectedParticipantIds.length === 1) {
+            entry.systolic = measurement.bloodPressureSystolic;
+            entry.diastolic = measurement.bloodPressureDiastolic;
+            entry.heartRate = measurement.heartRate;
+            entry.oxygenSaturation = measurement.oxygenSaturation;
+            entry.temperature = measurement.temperature;
+          }
+          
+          // Add participant-specific fields for charting (for all participants)
+          entry[`systolic_${participant.id}`] = measurement.bloodPressureSystolic;
+          entry[`diastolic_${participant.id}`] = measurement.bloodPressureDiastolic;
+          entry[`heartRate_${participant.id}`] = measurement.heartRate;
+          entry[`oxygenSaturation_${participant.id}`] = measurement.oxygenSaturation;
+          entry[`temperature_${participant.id}`] = measurement.temperature;
+        } else {
+          // No measurement for this date, set to null for this participant
+          entry[`systolic_${participant.id}`] = null;
+          entry[`diastolic_${participant.id}`] = null;
+          entry[`heartRate_${participant.id}`] = null;
+          entry[`oxygenSaturation_${participant.id}`] = null;
+          entry[`temperature_${participant.id}`] = null;
+        }
+      });
+    });
+    
+    // Convert the map to an array and sort by date
+    const allMeasurements = Array.from(dateMap.values());
     allMeasurements.sort((a, b) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
