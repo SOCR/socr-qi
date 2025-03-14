@@ -9,21 +9,24 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import NoDataMessage from "@/components/NoDataMessage";
 import { AreaChart, BarChart, LineChart, PieChart } from "@/components/ui/chart";
+import MultiParticipantChartControls from "@/components/MultiParticipantChartControls";
+import { useParticipantTimeSeriesData } from "@/hooks/useParticipantTimeSeriesData";
 
 const DataVisualization = () => {
   const { data, isDataLoaded } = useData();
-  const [selectedParticipant, setSelectedParticipant] = useState<string | null>(null);
+  const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([]);
+  const [selectedMetric, setSelectedMetric] = useState<string>("vitals");
+  
+  // Get the time series data for selected participants
+  const timeSeriesData = useParticipantTimeSeriesData(data, selectedParticipantIds);
   
   if (!isDataLoaded) {
     return <NoDataMessage />;
   }
 
   // Prepare data for charts
-  
   // Unit distribution for pie chart
   const unitCounts = data.reduce((acc, participant) => {
     acc[participant.unit] = (acc[participant.unit] || 0) + 1;
@@ -57,18 +60,70 @@ const DataVisualization = () => {
     value: riskDistribution[group] || 0 
   }));
 
-  // Get participant measurements for time series visualization
-  const participantMeasurementData = selectedParticipant 
-    ? data.find(p => p.id === selectedParticipant)?.measurements || []
-    : [];
-  
-  const timeSeriesData = participantMeasurementData.map(m => ({
-    date: m.date,
-    systolic: m.bloodPressureSystolic,
-    diastolic: m.bloodPressureDiastolic,
-    heartRate: m.heartRate,
-    oxygenSaturation: m.oxygenSaturation,
-  }));
+  // Define chart categories based on selected metric
+  const getChartCategories = () => {
+    if (selectedParticipantIds.length === 0) return [];
+    
+    if (selectedParticipantIds.length === 1) {
+      switch (selectedMetric) {
+        case "vitals":
+          return ["heartRate"];
+        case "bloodPressure":
+          return ["systolic", "diastolic"];
+        case "oxygenation":
+          return ["oxygenSaturation"];
+        case "temperature":
+          return ["temperature"];
+        default:
+          return ["heartRate", "systolic", "diastolic", "oxygenSaturation"];
+      }
+    } else {
+      // For multiple participants, create categories with participant IDs
+      const participantSpecificCategories: string[] = [];
+      
+      switch (selectedMetric) {
+        case "vitals":
+          selectedParticipantIds.forEach(id => {
+            participantSpecificCategories.push(`heartRate_${id}`);
+          });
+          break;
+        case "bloodPressure":
+          selectedParticipantIds.forEach(id => {
+            participantSpecificCategories.push(`systolic_${id}`);
+            participantSpecificCategories.push(`diastolic_${id}`);
+          });
+          break;
+        case "oxygenation":
+          selectedParticipantIds.forEach(id => {
+            participantSpecificCategories.push(`oxygenSaturation_${id}`);
+          });
+          break;
+        case "temperature":
+          selectedParticipantIds.forEach(id => {
+            participantSpecificCategories.push(`temperature_${id}`);
+          });
+          break;
+      }
+      
+      return participantSpecificCategories;
+    }
+  };
+
+  // Get chart title based on selected metric
+  const getChartTitle = () => {
+    switch (selectedMetric) {
+      case "vitals":
+        return "Heart Rate Over Time";
+      case "bloodPressure":
+        return "Blood Pressure Over Time";
+      case "oxygenation":
+        return "Oxygen Saturation Over Time";
+      case "temperature":
+        return "Temperature Over Time";
+      default:
+        return "Vital Signs Over Time";
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -185,43 +240,40 @@ const DataVisualization = () => {
           <Card>
             <CardHeader>
               <CardTitle>Participant Time Series Data</CardTitle>
-              <CardDescription>Longitudinal measurements for a selected participant</CardDescription>
+              <CardDescription>
+                Longitudinal measurements for selected participants
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="participant-select">Select Participant</Label>
-                  <Select 
-                    value={selectedParticipant || ""} 
-                    onValueChange={setSelectedParticipant}
-                  >
-                    <SelectTrigger id="participant-select">
-                      <SelectValue placeholder="Select a participant" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {data.map((participant) => (
-                        <SelectItem key={participant.id} value={participant.id}>
-                          {participant.id} - {participant.condition}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <MultiParticipantChartControls
+                data={data}
+                selectedParticipantIds={selectedParticipantIds}
+                setSelectedParticipantIds={setSelectedParticipantIds}
+                selectedMetric={selectedMetric}
+                setSelectedMetric={setSelectedMetric}
+              />
 
-              {selectedParticipant ? (
+              {selectedParticipantIds.length > 0 ? (
                 <div className="h-[400px]">
-                  <AreaChart
+                  <LineChart
                     data={timeSeriesData}
                     index="date"
-                    categories={["systolic", "diastolic", "heartRate", "oxygenSaturation"]}
-                    colors={["red", "pink", "blue", "green"]}
+                    categories={getChartCategories()}
+                    title={getChartTitle()}
                     valueFormatter={(value) => `${value}`}
                   />
+                  
+                  <div className="mt-4 text-sm text-muted-foreground">
+                    <p>
+                      {selectedParticipantIds.length === 1 
+                        ? "This chart shows the time series data for the selected participant."
+                        : "This chart shows the time series data for multiple participants, allowing comparison of trends."}
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center p-6 bg-gray-50 rounded-md">
-                  <p>Select a participant to view their time series data</p>
+                  <p>Select at least one participant to view time series data</p>
                 </div>
               )}
             </CardContent>

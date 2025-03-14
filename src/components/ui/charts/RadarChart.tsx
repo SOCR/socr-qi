@@ -10,7 +10,7 @@ import {
   Tooltip,
   Legend
 } from "recharts";
-import ChartTooltip from "@/components/ChartTooltip";
+import { CustomTooltip } from "@/components/ChartTooltip";
 
 interface RadarChartProps {
   data: any[];
@@ -48,11 +48,10 @@ export function RadarChart({
             />
           ))}
           
-          <Tooltip content={({ active, payload }) => (
-            <ChartTooltip
-              active={active}
-              payload={payload}
-              formatter={valueFormatter}
+          <Tooltip content={(props) => (
+            <CustomTooltip 
+              active={props.active} 
+              payload={props.payload} 
             />
           )} />
           <Legend />
