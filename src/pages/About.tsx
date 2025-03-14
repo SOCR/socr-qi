@@ -230,10 +230,7 @@ const About = () => {
           
           <Separator className="my-6" />
           
-          <div className="text-center text-sm text-gray-500">
-            <p>© {new Date().getFullYear()} Statistics Online Computational Resource (SOCR)</p>
-            <p className="mt-1">University of Michigan</p>
-          </div>
+          {/* Removed the duplicative copyright text */}
         </CardContent>
       </Card>
     </div>
