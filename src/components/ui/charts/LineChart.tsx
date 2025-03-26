@@ -9,165 +9,111 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ReferenceLine,
-  Area,
+  TooltipProps
 } from "recharts";
 import ChartContainer from "./ChartContainer";
 
-export interface ConfidenceBandCategory {
-  upper: string;
-  lower: string;
-  target: string;
-}
+// Define a palette of colors for charts
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#d53e4f', '#66c2a5'];
 
+// LineChart Component
 interface LineChartProps {
   data: any[];
   index: string;
   categories: string[];
   colors?: string[];
   valueFormatter?: (value: number) => string;
-  showConfidenceBands?: boolean;
-  confidenceBandCategories?: ConfidenceBandCategory[];
+  title?: string;
   height?: number;
-  showLegend?: boolean;
-  yAxisLabel?: string;
+  customTooltip?: React.ComponentType<TooltipProps<any, any>>;
+  customTooltipParams?: Record<string, any>;
+  showConfidenceBands?: boolean;
+  confidenceBandCategories?: {
+    main: string;
+    upper: string;
+    lower: string;
+  }[];
 }
 
-export const LineChart = ({
+export const LineChart: React.FC<LineChartProps> = ({
   data,
   index,
   categories,
-  colors = ["blue", "green", "red", "orange", "purple", "teal", "yellow", "pink", "indigo", "cyan"],
-  valueFormatter = (value: number) => `${value}`,
+  colors = COLORS,
+  valueFormatter = (value) => String(value),
+  title,
+  height,
+  customTooltip,
+  customTooltipParams = {},
   showConfidenceBands = false,
-  confidenceBandCategories = [],
-  height = 300,
-  showLegend = true,
-  yAxisLabel,
-}: LineChartProps) => {
-  if (!data?.length) {
-    return (
-      <div className="flex items-center justify-center h-full w-full bg-muted/20 rounded-md">
-        <p className="text-muted-foreground">No data available</p>
-      </div>
-    );
-  }
-
-  // Generate a color for each category
-  const getColor = (idx: number) => {
-    if (colors && colors[idx]) return colors[idx];
-    return `hsl(${(idx * 30) % 360}, 70%, 50%)`;
-  };
-
-  // Ensure categories is an array
-  const validCategories = Array.isArray(categories) ? categories : [];
-  
-  // Make sure confidenceBandCategories is an array and contains valid objects
-  const validConfidenceBands = Array.isArray(confidenceBandCategories) 
-    ? confidenceBandCategories.filter(band => 
-        band && typeof band === 'object' && 'upper' in band && 'lower' in band && 'target' in band
-      )
-    : [];
-
-  // Check if the data contains all the necessary fields for confidence bands
-  const validatedConfidenceBands = validConfidenceBands.filter(band => {
-    return data.some(item => 
-      item[band.upper] !== undefined && 
-      item[band.lower] !== undefined && 
-      item[band.target] !== undefined
-    );
-  });
-
+  confidenceBandCategories = []
+}) => {
   return (
-    <ChartContainer height={height}>
-      <RechartsLineChart
-        data={data}
-        margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-        <XAxis
-          dataKey={index}
-          tick={{ fontSize: 12 }}
-          tickLine={{ stroke: "gray", strokeWidth: 1 }}
-          axisLine={{ stroke: "gray", strokeWidth: 1 }}
-        />
-        <YAxis
-          tick={{ fontSize: 12 }}
-          tickLine={{ stroke: "gray", strokeWidth: 1 }}
-          axisLine={{ stroke: "gray", strokeWidth: 1 }}
-          tickFormatter={valueFormatter}
-          label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft' } : undefined}
-        />
-        <Tooltip
-          formatter={(value: number) => [valueFormatter(value), ""]}
-          labelFormatter={(label) => `${label}`}
-          contentStyle={{ backgroundColor: "white", borderRadius: "6px" }}
-        />
-        {showLegend && (
-          <Legend
-            align="center"
-            verticalAlign="bottom"
-            height={36}
-            wrapperStyle={{ fontSize: 12 }}
-          />
+    <ChartContainer title={title} height={height}>
+      <RechartsLineChart data={data} margin={{ top: 10, right: 30, left: 30, bottom: 40 }}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey={index} />
+        <YAxis tickFormatter={valueFormatter} />
+        
+        {/* Use custom tooltip if provided, otherwise use default */}
+        {customTooltip ? (
+          <Tooltip content={(props) => {
+            const CustomTooltipComponent = customTooltip;
+            return <CustomTooltipComponent {...props} formatter={valueFormatter} {...customTooltipParams} />;
+          }} />
+        ) : (
+          <Tooltip formatter={valueFormatter} />
         )}
-
-        {/* Render confidence bands if enabled and valid */}
-        {showConfidenceBands && validatedConfidenceBands.map((category, idx) => {
-          // Find the target category in the categories array
-          const targetIndex = validCategories.findIndex(cat => cat === category.target);
-          const color = getColor(targetIndex !== -1 ? targetIndex : idx);
-          
-          return (
-            <Area
-              key={`conf-area-${idx}-${category.target}`}
-              type="monotone"
-              dataKey={category.upper}
-              stroke="none"
-              fillOpacity={0.1}
-              fill={color}
-              activeDot={false}
-              isAnimationActive={false}
-              legendType="none"
-            />
-          );
-        })}
-
-        {showConfidenceBands && validatedConfidenceBands.map((category, idx) => {
-          const targetIndex = validCategories.findIndex(cat => cat === category.target);
-          const color = getColor(targetIndex !== -1 ? targetIndex : idx);
-          
-          return (
-            <Area
-              key={`conf-lower-${idx}-${category.target}`}
-              type="monotone"
-              dataKey={category.lower}
-              stroke="none"
-              fillOpacity={0}
-              fill={color}
-              activeDot={false}
-              isAnimationActive={false}
-              legendType="none"
-            />
-          );
-        })}
-
-        {/* Render the actual lines */}
-        {validCategories.map((category, idx) => (
+        
+        <Legend />
+        
+        {/* Regular line series */}
+        {categories.map((category, i) => (
           <Line
-            key={`line-${category}`}
+            key={category}
             type="monotone"
             dataKey={category}
-            stroke={getColor(idx)}
-            fill={getColor(idx)}
-            strokeWidth={2}
-            dot={{ r: 4, strokeWidth: 1 }}
-            activeDot={{ r: 6, strokeWidth: 1 }}
+            stroke={colors[i % colors.length]}
+            activeDot={{ r: 8 }}
             name={category}
-            isAnimationActive={true}
+            connectNulls={true}
           />
+        ))}
+        
+        {/* Confidence bands if enabled */}
+        {showConfidenceBands && confidenceBandCategories.map((bandSet, i) => (
+          <React.Fragment key={`band-${i}`}>
+            <Line
+              type="monotone"
+              dataKey={bandSet.main}
+              stroke={colors[i % colors.length]}
+              strokeWidth={2}
+              activeDot={{ r: 8 }}
+              connectNulls={true}
+            />
+            <Line
+              type="monotone"
+              dataKey={bandSet.upper}
+              stroke={colors[i % colors.length]}
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              activeDot={false}
+              connectNulls={true}
+            />
+            <Line
+              type="monotone"
+              dataKey={bandSet.lower}
+              stroke={colors[i % colors.length]}
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              activeDot={false}
+              connectNulls={true}
+            />
+          </React.Fragment>
         ))}
       </RechartsLineChart>
     </ChartContainer>
   );
 };
+
+export default LineChart;

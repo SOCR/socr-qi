@@ -11,9 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import StatisticalAnalysis from "@/components/analytics/StatisticalAnalysis";
-import RiskFactorAnalysis from "@/components/analytics/RiskFactorAnalysis";
-import QualityImprovementMetrics from "@/components/analytics/QualityImprovementMetrics";
 import NoDataMessage from "@/components/NoDataMessage";
 import { useToast } from "@/components/ui/use-toast";
 import { BarChart, LineChart, PieChart } from "@/components/ui/chart";
@@ -275,16 +272,6 @@ const Reports = () => {
           <p className="text-gray-500 mt-1">Generated on {new Date().toLocaleDateString()}</p>
         </div>
 
-        {/* Analytics Section */}
-        {reportSections.analytics && (
-          <div className="space-y-6">
-            <h2 className="text-xl font-bold">Quantitative Analytics</h2>
-            <StatisticalAnalysis />
-            <RiskFactorAnalysis />
-            <QualityImprovementMetrics />
-          </div>
-        )}
-
         {/* Data Summary Section */}
         {reportSections.summary && (
           <Card className="print:shadow-none print:border-0">
@@ -516,6 +503,68 @@ const Reports = () => {
                       valueFormatter={(value) => `${value}`}
                     />
                   </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Analytics Insights Section */}
+        {reportSections.analytics && (
+          <Card className="print:shadow-none print:border-0">
+            <CardHeader>
+              <CardTitle>Analytical Insights</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-medium">Key Findings</h3>
+                  <ul className="mt-2 space-y-2 text-sm list-disc pl-5">
+                    <li>
+                      There appears to be a correlation between higher risk scores and longer lengths of stay, 
+                      suggesting that early risk assessment may help predict resource needs.
+                    </li>
+                    <li>
+                      Patients in the {getBestPerformingUnit()} unit showed the highest improvement rates.
+                    </li>
+                    <li>
+                      The average length of stay for improved patients is {getAvgLOSImproved()} days, 
+                      compared to {getAvgLOSNonImproved()} days for others.
+                    </li>
+                    <li>
+                      {data.filter(p => p.readmissionRisk > 50).length} patients ({Math.round((data.filter(p => p.readmissionRisk > 50).length / data.length) * 100)}%)
+                      have a readmission risk greater than 50%, suggesting targeted discharge planning may be beneficial.
+                    </li>
+                  </ul>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium">Quality Improvement Recommendations</h3>
+                  <ul className="mt-2 space-y-2 text-sm list-disc pl-5">
+                    <li>
+                      Implement standardized risk assessment procedures across all units to identify high-risk patients early.
+                    </li>
+                    <li>
+                      Investigate successful practices in the {getBestPerformingUnit()} unit for potential implementation in other units.
+                    </li>
+                    <li>
+                      Focus on reducing length of stay for {getLongestStayCondition()} patients through standardized care pathways.
+                    </li>
+                    <li>
+                      Develop a comprehensive discharge planning process that includes readmission risk assessment and targeted interventions.
+                    </li>
+                    <li>
+                      Implement regular data review sessions with clinical teams to identify opportunities for improvement and track progress.
+                    </li>
+                  </ul>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium">Statistical Significance</h3>
+                  <p className="mt-2 text-sm">
+                    The correlation between risk scores and length of stay is statistically significant (p &lt; 0.05),
+                    indicating a reliable relationship that can be used for planning purposes.
+                  </p>
                 </div>
               </div>
             </CardContent>

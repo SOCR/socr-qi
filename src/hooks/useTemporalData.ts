@@ -52,8 +52,7 @@ export const useTemporalData = (data: Participant[]) => {
           sumPain: 0,
           // Add statistics by condition and unit
           conditionStats: {},
-          unitStats: {},
-          participantStats: {} // Add participant-specific stats
+          unitStats: {}
         };
       }
       
@@ -184,53 +183,6 @@ export const useTemporalData = (data: Participant[]) => {
         }
       }
       
-      // Track participant-specific data
-      if (m.participantId) {
-        if (!entry.participantStats[m.participantId]) {
-          entry.participantStats[m.participantId] = {
-            count: 0,
-            sumBpSystolic: 0,
-            sumBpDiastolic: 0,
-            sumHeartRate: 0,
-            sumTemperature: 0,
-            sumOxygenSaturation: 0,
-            validBpSystolicCount: 0,
-            validBpDiastolicCount: 0,
-            validHeartRateCount: 0,
-            validTemperatureCount: 0,
-            validOxygenSaturationCount: 0
-          };
-        }
-        
-        const participantEntry = entry.participantStats[m.participantId];
-        participantEntry.count += 1;
-        
-        if (m.bloodPressureSystolic !== null) {
-          participantEntry.sumBpSystolic += m.bloodPressureSystolic;
-          participantEntry.validBpSystolicCount += 1;
-        }
-        
-        if (m.bloodPressureDiastolic !== null) {
-          participantEntry.sumBpDiastolic += m.bloodPressureDiastolic;
-          participantEntry.validBpDiastolicCount += 1;
-        }
-        
-        if (m.heartRate !== null) {
-          participantEntry.sumHeartRate += m.heartRate;
-          participantEntry.validHeartRateCount += 1;
-        }
-        
-        if (m.temperature !== null) {
-          participantEntry.sumTemperature += m.temperature;
-          participantEntry.validTemperatureCount += 1;
-        }
-        
-        if (m.oxygenSaturation !== null) {
-          participantEntry.sumOxygenSaturation += m.oxygenSaturation;
-          participantEntry.validOxygenSaturationCount += 1;
-        }
-      }
-      
       entry.count += 1;
     });
     
@@ -308,38 +260,6 @@ export const useTemporalData = (data: Participant[]) => {
         entry[`${unit}_avgOxygenSaturation`] = unitStat.avgOxygenSaturation;
       });
       
-      // Calculate participant-specific averages
-      Object.keys(entry.participantStats).forEach(participantId => {
-        const participantStat = entry.participantStats[participantId];
-        
-        participantStat.avgBpSystolic = participantStat.validBpSystolicCount > 0 
-          ? participantStat.sumBpSystolic / participantStat.validBpSystolicCount 
-          : null;
-          
-        participantStat.avgBpDiastolic = participantStat.validBpDiastolicCount > 0 
-          ? participantStat.sumBpDiastolic / participantStat.validBpDiastolicCount 
-          : null;
-          
-        participantStat.avgHeartRate = participantStat.validHeartRateCount > 0 
-          ? participantStat.sumHeartRate / participantStat.validHeartRateCount 
-          : null;
-          
-        participantStat.avgTemperature = participantStat.validTemperatureCount > 0 
-          ? participantStat.sumTemperature / participantStat.validTemperatureCount 
-          : null;
-          
-        participantStat.avgOxygenSaturation = participantStat.validOxygenSaturationCount > 0 
-          ? participantStat.sumOxygenSaturation / participantStat.validOxygenSaturationCount 
-          : null;
-          
-        // Add prefix to participant stats for easier access
-        entry[`participant_${participantId}_avgBpSystolic`] = participantStat.avgBpSystolic;
-        entry[`participant_${participantId}_avgBpDiastolic`] = participantStat.avgBpDiastolic;
-        entry[`participant_${participantId}_avgHeartRate`] = participantStat.avgHeartRate;
-        entry[`participant_${participantId}_avgTemperature`] = participantStat.avgTemperature;
-        entry[`participant_${participantId}_avgOxygenSaturation`] = participantStat.avgOxygenSaturation;
-      });
-      
       // Remove sum fields and count fields to clean up the object
       delete entry.sumBpSystolic;
       delete entry.sumBpDiastolic;
@@ -353,7 +273,7 @@ export const useTemporalData = (data: Participant[]) => {
       delete entry.validTemperatureCount;
       delete entry.validOxygenSaturationCount;
       delete entry.validPainCount;
-      // Keep conditionStats, unitStats, and participantStats for potential use
+      // Keep conditionStats and unitStats for potential use
     });
     
     return Object.values(measurementsByMonth).sort((a: any, b: any) => a.month.localeCompare(b.month));

@@ -4,8 +4,6 @@ import { BarChart } from './charts/BarChart';
 import { LineChart } from './charts/LineChart';
 import { PieChart } from './charts/PieChart';
 import { RadarChart } from './charts/RadarChart';
-import ScatterChart from '../ScatterChart';
-import ChartContainer from './charts/ChartContainer';
 
 // Export the chart components to make them available throughout the application
 export {
@@ -13,7 +11,5 @@ export {
   BarChart,
   LineChart,
   PieChart,
-  RadarChart,
-  ScatterChart,
-  ChartContainer
+  RadarChart
 };

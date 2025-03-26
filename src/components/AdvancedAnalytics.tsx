@@ -18,6 +18,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CorrelationAnalysis from "./analytics/CorrelationAnalysis";
 import ClusteringAnalysis from "./analytics/ClusteringAnalysis";
 
@@ -201,6 +202,7 @@ const AdvancedAnalytics = () => {
           <div className="mt-8 space-y-6">
             {results.type === "correlation" && (
               <CorrelationAnalysis 
+                data={data}
                 xVariable={results.xVariable}
                 yVariable={results.yVariable}
                 variableOptions={variableOptions}
@@ -209,6 +211,7 @@ const AdvancedAnalytics = () => {
             
             {results.type === "clustering" && (
               <ClusteringAnalysis
+                data={data}
                 variable1={results.variable1}
                 variable2={results.variable2}
                 numClusters={results.numClusters}
