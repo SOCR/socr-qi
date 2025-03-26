@@ -64,7 +64,7 @@ const TemporalTrends = () => {
     // Add a small delay to allow the UI to update
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 100);
+    }, 300);
     return () => clearTimeout(timer);
   }, [filterType, selectedConditions, selectedUnits, selectedParticipants]);
   
@@ -138,117 +138,6 @@ const TemporalTrends = () => {
     showConfidenceBands,
   });
 
-  // Generate legend items for combined charts (BP, Oxygen/Temp)
-  const getBpLegendItems = () => {
-    const items = [];
-    if (showAggregateAverage) {
-      items.push(
-        { label: "avgBpSystolic: Average Systolic Blood Pressure", color: "rgb(59, 130, 246)" },
-        { label: "avgBpDiastolic: Average Diastolic Blood Pressure", color: "rgb(34, 197, 94)" }
-      );
-    }
-    
-    if (showIndividualCourses) {
-      if (filterType === 'condition') {
-        selectedConditions.forEach((condition, index) => {
-          items.push(
-            { 
-              label: `${condition} Systolic: ${condition} Average Systolic Blood Pressure`, 
-              color: `hsl(${(index * 30) % 360}, 70%, 50%)` 
-            },
-            { 
-              label: `${condition} Diastolic: ${condition} Average Diastolic Blood Pressure`, 
-              color: `hsl(${((index * 30) + 15) % 360}, 70%, 50%)` 
-            }
-          );
-        });
-      } else if (filterType === 'unit') {
-        selectedUnits.forEach((unit, index) => {
-          items.push(
-            { 
-              label: `${unit} Systolic: ${unit} Average Systolic Blood Pressure`, 
-              color: `hsl(${(index * 30) % 360}, 70%, 50%)` 
-            },
-            { 
-              label: `${unit} Diastolic: ${unit} Average Diastolic Blood Pressure`, 
-              color: `hsl(${((index * 30) + 15) % 360}, 70%, 50%)` 
-            }
-          );
-        });
-      } else if (filterType === 'participant') {
-        selectedParticipants.forEach((participantId, index) => {
-          items.push(
-            { 
-              label: `Patient ${participantId} Systolic BP`, 
-              color: `hsl(${(index * 30) % 360}, 70%, 50%)` 
-            },
-            { 
-              label: `Patient ${participantId} Diastolic BP`, 
-              color: `hsl(${((index * 30) + 15) % 360}, 70%, 50%)` 
-            }
-          );
-        });
-      }
-    }
-    
-    return items;
-  };
-  
-  const getOxygenTempLegendItems = () => {
-    const items = [];
-    if (showAggregateAverage) {
-      items.push(
-        { label: "avgOxygenSaturation: Average Oxygen Saturation (%)", color: "rgb(59, 130, 246)" },
-        { label: "avgTemperature: Average Temperature (°C)", color: "rgb(34, 197, 94)" }
-      );
-    }
-    
-    if (showIndividualCourses) {
-      if (filterType === 'condition') {
-        selectedConditions.forEach((condition, index) => {
-          items.push(
-            { 
-              label: `${condition} O₂: ${condition} Average Oxygen Saturation`, 
-              color: `hsl(${(index * 30) % 360}, 70%, 50%)` 
-            },
-            { 
-              label: `${condition} Temp: ${condition} Average Temperature`, 
-              color: `hsl(${((index * 30) + 15) % 360}, 70%, 50%)` 
-            }
-          );
-        });
-      } else if (filterType === 'unit') {
-        selectedUnits.forEach((unit, index) => {
-          items.push(
-            { 
-              label: `${unit} O₂: ${unit} Average Oxygen Saturation`, 
-              color: `hsl(${(index * 30) % 360}, 70%, 50%)` 
-            },
-            { 
-              label: `${unit} Temp: ${unit} Average Temperature`, 
-              color: `hsl(${((index * 30) + 15) % 360}, 70%, 50%)` 
-            }
-          );
-        });
-      } else if (filterType === 'participant') {
-        selectedParticipants.forEach((participantId, index) => {
-          items.push(
-            { 
-              label: `Patient ${participantId} O₂ Saturation`, 
-              color: `hsl(${(index * 30) % 360}, 70%, 50%)` 
-            },
-            { 
-              label: `Patient ${participantId} Temperature`, 
-              color: `hsl(${((index * 30) + 15) % 360}, 70%, 50%)` 
-            }
-          );
-        });
-      }
-    }
-    
-    return items;
-  };
-
   // Check if we have any chart categories for the current selection
   const hasCategories = (tab: string) => {
     try {
@@ -264,6 +153,29 @@ const TemporalTrends = () => {
       console.error("Error checking categories:", error);
       return false;
     }
+  };
+
+  // Generate legend items for combined charts (BP, Oxygen/Temp)
+  const getBpLegendItems = () => {
+    return [
+      ...(showAggregateAverage ? [
+        { label: "avgBpSystolic: Average Systolic Blood Pressure", color: "rgb(59, 130, 246)" },
+        { label: "avgBpDiastolic: Average Diastolic Blood Pressure", color: "rgb(34, 197, 94)" }
+      ] : []),
+      ...bpCategories.legendItems,
+      ...bpDiastolicCategories.legendItems
+    ];
+  };
+  
+  const getOxygenTempLegendItems = () => {
+    return [
+      ...(showAggregateAverage ? [
+        { label: "avgOxygenSaturation: Average Oxygen Saturation (%)", color: "rgb(59, 130, 246)" },
+        { label: "avgTemperature: Average Temperature (°C)", color: "rgb(34, 197, 94)" }
+      ] : []),
+      ...oxygenCategories.legendItems,
+      ...temperatureCategories.legendItems
+    ];
   };
 
   return (

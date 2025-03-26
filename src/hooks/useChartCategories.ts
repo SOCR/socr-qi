@@ -127,7 +127,7 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
         }
         else if (filterType === 'participant' && selectedParticipants.length > 0) {
           selectedParticipants.forEach((participantId, index) => {
-            const key = `participant_${participantId}_${metricInfo.avgPrefix}`;
+            const key = `participant_${participantId}_${metric.toLowerCase()}`;
             categories.push(key);
             
             legendItems.push({

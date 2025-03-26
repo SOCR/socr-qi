@@ -10,6 +10,7 @@ import {
   Legend,
   ResponsiveContainer,
   ReferenceLine,
+  Area,
 } from "recharts";
 import ChartContainer from "./ChartContainer";
 
@@ -58,6 +59,13 @@ export const LineChart = ({
     return `hsl(${(idx * 30) % 360}, 70%, 50%)`;
   };
 
+  // Make sure confidenceBandCategories is an array and contains valid objects
+  const validConfidenceBands = Array.isArray(confidenceBandCategories) 
+    ? confidenceBandCategories.filter(band => 
+        band && typeof band === 'object' && 'upper' in band && 'lower' in band && 'target' in band
+      )
+    : [];
+
   return (
     <ChartContainer height={height}>
       <RechartsLineChart
@@ -93,33 +101,48 @@ export const LineChart = ({
         )}
 
         {/* Render confidence bands if enabled */}
-        {showConfidenceBands &&
-          confidenceBandCategories.map((category, idx) => {
-            // Skip if category is not properly structured
-            if (!category || typeof category !== 'object' || !('upper' in category) || !('lower' in category)) {
-              return null;
-            }
-            
-            const { upper, lower, target } = category;
-            
-            return (
-              <Line
-                key={`band-${idx}-${upper}`}
-                type="monotone"
-                dataKey={upper}
-                stroke="none"
-                dot={false}
-                activeDot={false}
-                fill={getColor(idx)}
-                fillOpacity={0.1}
-              />
-            );
-          })}
+        {showConfidenceBands && validConfidenceBands.map((category, idx) => {
+          const targetIndex = categories.findIndex(cat => cat === category.target);
+          const color = getColor(targetIndex !== -1 ? targetIndex : idx);
+          
+          return (
+            <Area
+              key={`band-${idx}-${category.upper}`}
+              type="monotone"
+              dataKey={category.upper}
+              stroke="none"
+              fillOpacity={0.1}
+              fill={color}
+              activeDot={false}
+              isAnimationActive={false}
+              legendType="none"
+            />
+          );
+        })}
+
+        {showConfidenceBands && validConfidenceBands.map((category, idx) => {
+          const targetIndex = categories.findIndex(cat => cat === category.target);
+          const color = getColor(targetIndex !== -1 ? targetIndex : idx);
+          
+          return (
+            <Area
+              key={`band-${idx}-${category.lower}`}
+              type="monotone"
+              dataKey={category.lower}
+              stroke="none"
+              fillOpacity={0}
+              fill={color}
+              activeDot={false}
+              isAnimationActive={false}
+              legendType="none"
+            />
+          );
+        })}
 
         {/* Render the actual lines */}
         {categories.map((category, idx) => (
           <Line
-            key={category}
+            key={`line-${category}`}
             type="monotone"
             dataKey={category}
             stroke={getColor(idx)}
@@ -128,6 +151,7 @@ export const LineChart = ({
             dot={{ r: 4, strokeWidth: 1 }}
             activeDot={{ r: 6, strokeWidth: 1 }}
             name={category}
+            isAnimationActive={true}
           />
         ))}
       </RechartsLineChart>
