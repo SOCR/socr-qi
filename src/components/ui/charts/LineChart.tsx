@@ -33,6 +33,9 @@ interface LineChartProps {
     upper: string;
     lower: string;
   }[];
+  showIndividualSeries?: boolean;
+  individualSeriesPattern?: string;
+  strokeDasharray?: string;
 }
 
 export const LineChart: React.FC<LineChartProps> = ({
@@ -46,8 +49,25 @@ export const LineChart: React.FC<LineChartProps> = ({
   customTooltip,
   customTooltipParams = {},
   showConfidenceBands = false,
-  confidenceBandCategories = []
+  confidenceBandCategories = [],
+  showIndividualSeries = false,
+  individualSeriesPattern = "",
+  strokeDasharray = "3 3"
 }) => {
+  // Extract individual series if a pattern is provided
+  const individualSeries: string[] = [];
+  
+  if (showIndividualSeries && individualSeriesPattern) {
+    // Find all keys in data that match the pattern
+    if (data.length > 0) {
+      Object.keys(data[0]).forEach(key => {
+        if (key.includes(individualSeriesPattern) && !categories.includes(key)) {
+          individualSeries.push(key);
+        }
+      });
+    }
+  }
+
   return (
     <ChartContainer title={title} height={height}>
       <RechartsLineChart data={data} margin={{ top: 10, right: 30, left: 30, bottom: 40 }}>
@@ -77,6 +97,23 @@ export const LineChart: React.FC<LineChartProps> = ({
             activeDot={{ r: 8 }}
             name={category}
             connectNulls={true}
+            strokeWidth={2}
+          />
+        ))}
+        
+        {/* Individual series with thinner, lighter lines */}
+        {showIndividualSeries && individualSeries.map((series, i) => (
+          <Line
+            key={series}
+            type="monotone"
+            dataKey={series}
+            stroke={colors[(i + categories.length) % colors.length]}
+            strokeOpacity={0.6}
+            strokeWidth={1}
+            dot={false}
+            activeDot={false}
+            name={series}
+            connectNulls={true}
           />
         ))}
         
@@ -90,24 +127,27 @@ export const LineChart: React.FC<LineChartProps> = ({
               strokeWidth={2}
               activeDot={{ r: 8 }}
               connectNulls={true}
+              name={bandSet.main}
             />
             <Line
               type="monotone"
               dataKey={bandSet.upper}
               stroke={colors[i % colors.length]}
               strokeWidth={1}
-              strokeDasharray="3 3"
+              strokeDasharray={strokeDasharray}
               activeDot={false}
               connectNulls={true}
+              name={`${bandSet.main} (Upper)`}
             />
             <Line
               type="monotone"
               dataKey={bandSet.lower}
               stroke={colors[i % colors.length]}
               strokeWidth={1}
-              strokeDasharray="3 3"
+              strokeDasharray={strokeDasharray}
               activeDot={false}
               connectNulls={true}
+              name={`${bandSet.main} (Lower)`}
             />
           </React.Fragment>
         ))}
