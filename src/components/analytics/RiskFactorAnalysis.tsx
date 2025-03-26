@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useData } from "@/context/DataContext";
 import { 
@@ -266,14 +265,14 @@ const RiskFactorAnalysis = () => {
             <div className="h-64">
               <ScatterChart
                 data={correlationData}
-                xAxis={[{ 
+                xAxis={{
                   dataKey: "riskScore",
                   label: "Risk Score"
-                }]}
-                yAxis={[{ 
+                }}
+                yAxis={{
                   dataKey: "lengthOfStay",
                   label: "Length of Stay (days)"
-                }]}
+                }}
                 series={[
                   {
                     dataKey: "outcome",

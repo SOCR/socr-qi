@@ -51,8 +51,8 @@ const MultiParticipantChartControls: React.FC<MultiParticipantChartControlsProps
   setShowConfidenceBands
 }) => {
   const [filterCriteria, setFilterCriteria] = useState<string>('all');
-  const [selectedCondition, setSelectedCondition] = useState<string>('');
-  const [selectedUnit, setSelectedUnit] = useState<string>('');
+  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
+  const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
 
   // Get unique conditions and units for filtering
   const uniqueConditions = Array.from(new Set(data.map(p => p.condition))).sort();
@@ -65,6 +65,24 @@ const MultiParticipantChartControls: React.FC<MultiParticipantChartControlsProps
     } else {
       setSelectedParticipantIds([...selectedParticipantIds, id]);
     }
+  };
+
+  // Toggle selection of a condition
+  const toggleCondition = (condition: string) => {
+    setSelectedConditions(prev => 
+      prev.includes(condition) 
+        ? prev.filter(c => c !== condition) 
+        : [...prev, condition]
+    );
+  };
+
+  // Toggle selection of a unit
+  const toggleUnit = (unit: string) => {
+    setSelectedUnits(prev => 
+      prev.includes(unit) 
+        ? prev.filter(u => u !== unit) 
+        : [...prev, unit]
+    );
   };
 
   // Select all participants (or limit to a reasonable number)
@@ -83,10 +101,10 @@ const MultiParticipantChartControls: React.FC<MultiParticipantChartControlsProps
   const getFilteredParticipants = () => {
     let filteredData = [...data];
     
-    if (filterCriteria === 'condition' && selectedCondition) {
-      filteredData = filteredData.filter(p => p.condition === selectedCondition);
-    } else if (filterCriteria === 'unit' && selectedUnit) {
-      filteredData = filteredData.filter(p => p.unit === selectedUnit);
+    if (filterCriteria === 'condition' && selectedConditions.length > 0) {
+      filteredData = filteredData.filter(p => selectedConditions.includes(p.condition));
+    } else if (filterCriteria === 'unit' && selectedUnits.length > 0) {
+      filteredData = filteredData.filter(p => selectedUnits.includes(p.unit));
     }
     
     return filteredData;
@@ -96,8 +114,8 @@ const MultiParticipantChartControls: React.FC<MultiParticipantChartControlsProps
   const handleFilterChange = (criteria: string) => {
     setFilterCriteria(criteria);
     if (criteria === 'all') {
-      setSelectedCondition('');
-      setSelectedUnit('');
+      setSelectedConditions([]);
+      setSelectedUnits([]);
     }
   };
 
@@ -125,39 +143,51 @@ const MultiParticipantChartControls: React.FC<MultiParticipantChartControlsProps
             </Select>
             
             {filterCriteria === 'condition' && (
-              <Select
-                value={selectedCondition}
-                onValueChange={setSelectedCondition}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select condition..." />
-                </SelectTrigger>
-                <SelectContent>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    {selectedConditions.length === 0 
+                      ? "Select conditions" 
+                      : `${selectedConditions.length} condition(s) selected`}
+                    <span>▼</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[200px] max-h-[300px] overflow-auto">
                   {uniqueConditions.map(condition => (
-                    <SelectItem key={condition} value={condition}>
+                    <DropdownMenuCheckboxItem
+                      key={condition}
+                      checked={selectedConditions.includes(condition)}
+                      onCheckedChange={() => toggleCondition(condition)}
+                    >
                       {condition}
-                    </SelectItem>
+                    </DropdownMenuCheckboxItem>
                   ))}
-                </SelectContent>
-              </Select>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             
             {filterCriteria === 'unit' && (
-              <Select
-                value={selectedUnit}
-                onValueChange={setSelectedUnit}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select unit..." />
-                </SelectTrigger>
-                <SelectContent>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between">
+                    {selectedUnits.length === 0 
+                      ? "Select units" 
+                      : `${selectedUnits.length} unit(s) selected`}
+                    <span>▼</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[200px] max-h-[300px] overflow-auto">
                   {uniqueUnits.map(unit => (
-                    <SelectItem key={unit} value={unit}>
+                    <DropdownMenuCheckboxItem
+                      key={unit}
+                      checked={selectedUnits.includes(unit)}
+                      onCheckedChange={() => toggleUnit(unit)}
+                    >
                       {unit}
-                    </SelectItem>
+                    </DropdownMenuCheckboxItem>
                   ))}
-                </SelectContent>
-              </Select>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>
@@ -237,8 +267,10 @@ const MultiParticipantChartControls: React.FC<MultiParticipantChartControlsProps
               <Switch 
                 id="compare-condition" 
                 checked={compareToConditionMean}
-                onCheckedChange={setCompareToConditionMean}
-                disabled={compareToUnitMean}
+                onCheckedChange={(checked) => {
+                  setCompareToConditionMean(checked);
+                  if (checked) setCompareToUnitMean(false);
+                }}
               />
             </div>
             
@@ -247,8 +279,10 @@ const MultiParticipantChartControls: React.FC<MultiParticipantChartControlsProps
               <Switch 
                 id="compare-unit" 
                 checked={compareToUnitMean}
-                onCheckedChange={setCompareToUnitMean}
-                disabled={compareToConditionMean}
+                onCheckedChange={(checked) => {
+                  setCompareToUnitMean(checked);
+                  if (checked) setCompareToConditionMean(false);
+                }}
               />
             </div>
             
