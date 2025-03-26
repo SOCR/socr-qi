@@ -15,6 +15,7 @@ import ChartLegend from "./ChartLegend";
 import { LineChart } from "@/components/ui/charts";
 import { useChartCategories } from "@/hooks/useChartCategories";
 import { useToast } from "@/components/ui/use-toast";
+import { ConfidenceBandCategory } from "@/components/ui/charts/LineChart";
 
 const TemporalTrends = () => {
   const { data } = useData();
@@ -64,7 +65,7 @@ const TemporalTrends = () => {
     // Add a small delay to allow the UI to update
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 500);
+    }, 300);
     return () => clearTimeout(timer);
   }, [filterType, selectedConditions, selectedUnits, selectedParticipants, showConfidenceBands]);
   
@@ -75,9 +76,11 @@ const TemporalTrends = () => {
   const handleFilterTypeChange = (type: string) => {
     setFilterType(type);
     // Reset selections when changing filter type
-    setSelectedConditions([]);
-    setSelectedUnits([]);
-    setSelectedParticipants([]);
+    if (type !== filterType) {
+      setSelectedConditions([]);
+      setSelectedUnits([]);
+      setSelectedParticipants([]);
+    }
   };
 
   // Get vital signs chart categories
@@ -171,18 +174,54 @@ const TemporalTrends = () => {
   };
 
   // Validate confidence band categories
-  const validateConfidenceBands = (confidenceBands) => {
+  const validateConfidenceBands = (confidenceBands: ConfidenceBandCategory[]): ConfidenceBandCategory[] => {
     if (!Array.isArray(confidenceBands)) {
+      console.error("confidenceBands is not an array:", confidenceBands);
       return [];
     }
     
+    // Ensure every item in the array has the correct structure
     return confidenceBands.filter(band => 
-      band && typeof band === 'object' && 
+      band && 
+      typeof band === 'object' && 
       typeof band.upper === 'string' && 
       typeof band.lower === 'string' && 
       typeof band.target === 'string'
     );
   };
+
+  // If data is being loaded or there's an error, show appropriate UI
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Temporal Trends Analysis</CardTitle>
+          <CardDescription>Changes in key health indicators over time</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[300px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Temporal Trends Analysis</CardTitle>
+          <CardDescription>Changes in key health indicators over time</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[300px] bg-red-50 rounded-md">
+            <p className="text-red-500">{error}</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -215,15 +254,7 @@ const TemporalTrends = () => {
           />
         </div>
         
-        {isLoading ? (
-          <div className="flex items-center justify-center h-[300px]">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-          </div>
-        ) : error ? (
-          <div className="flex items-center justify-center h-[300px] bg-red-50 rounded-md">
-            <p className="text-red-500">{error}</p>
-          </div>
-        ) : temporalData.length === 0 ? (
+        {temporalData.length === 0 ? (
           <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-md">
             <p className="text-gray-500">No data available for the selected filters</p>
           </div>
@@ -244,7 +275,7 @@ const TemporalTrends = () => {
                     categories={vitalSignsCategories.categories}
                     valueFormatter={(value) => `${Math.round(value)}`}
                     height={250}
-                    showConfidenceBands={showConfidenceBands}
+                    showConfidenceBands={showConfidenceBands && vitalSignsCategories.confidenceBandCategories.length > 0}
                     confidenceBandCategories={validateConfidenceBands(vitalSignsCategories.confidenceBandCategories)}
                   />
                 ) : (
@@ -272,7 +303,9 @@ const TemporalTrends = () => {
                     ]}
                     valueFormatter={(value) => `${Math.round(value)}`}
                     height={250}
-                    showConfidenceBands={showConfidenceBands}
+                    showConfidenceBands={showConfidenceBands && 
+                      (bpCategories.confidenceBandCategories.length > 0 || 
+                       bpDiastolicCategories.confidenceBandCategories.length > 0)}
                     confidenceBandCategories={[
                       ...validateConfidenceBands(bpCategories.confidenceBandCategories),
                       ...validateConfidenceBands(bpDiastolicCategories.confidenceBandCategories)
@@ -303,7 +336,9 @@ const TemporalTrends = () => {
                     ]}
                     valueFormatter={(value) => `${value.toFixed(1)}`}
                     height={250}
-                    showConfidenceBands={showConfidenceBands}
+                    showConfidenceBands={showConfidenceBands && 
+                      (oxygenCategories.confidenceBandCategories.length > 0 || 
+                       temperatureCategories.confidenceBandCategories.length > 0)}
                     confidenceBandCategories={[
                       ...validateConfidenceBands(oxygenCategories.confidenceBandCategories),
                       ...validateConfidenceBands(temperatureCategories.confidenceBandCategories)

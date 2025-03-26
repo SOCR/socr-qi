@@ -73,7 +73,7 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
         categories.push(avgKey);
         
         legendItems.push({
-          label: `${avgKey}: Average ${metricInfo.label} (${metricInfo.unit})`,
+          label: `Average ${metricInfo.label} (${metricInfo.unit})`,
           color: 'rgb(59, 130, 246)'  // Blue
         });
         
@@ -96,7 +96,7 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
             categories.push(key);
             
             legendItems.push({
-              label: `${condition}: ${condition} Average ${metricInfo.label}`,
+              label: `${condition}: Average ${metricInfo.label}`,
               color: `hsl(${(index * 30 + 60) % 360}, 70%, 50%)`
             });
             
@@ -117,7 +117,7 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
             categories.push(key);
             
             legendItems.push({
-              label: `${unit}: ${unit} Average ${metricInfo.label}`,
+              label: `${unit}: Average ${metricInfo.label}`,
               color: `hsl(${(index * 30 + 120) % 360}, 70%, 50%)`
             });
             
@@ -143,7 +143,7 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
               color: `hsl(${(index * 30 + 180) % 360}, 70%, 50%)`
             });
             
-            // No confidence bands for individual participants
+            // Individual participants don't have confidence bands
           });
         }
       }
