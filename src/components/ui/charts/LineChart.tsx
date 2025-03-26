@@ -37,6 +37,12 @@ interface LineChartProps {
   individualSeriesPattern?: string;
   individualSeriesCategories?: string[];
   strokeDasharray?: string;
+  regressionLine?: {
+    x: string;
+    y: string;
+    slope: number;
+    intercept: number;
+  };
 }
 
 export const LineChart: React.FC<LineChartProps> = ({
@@ -54,7 +60,8 @@ export const LineChart: React.FC<LineChartProps> = ({
   showIndividualSeries = false,
   individualSeriesPattern = "",
   individualSeriesCategories = [],
-  strokeDasharray = "3 3"
+  strokeDasharray = "3 3",
+  regressionLine
 }) => {
   // Extract individual series if a pattern is provided and no specific categories are provided
   const individualSeries: string[] = individualSeriesCategories.length > 0 
@@ -72,9 +79,24 @@ export const LineChart: React.FC<LineChartProps> = ({
     }
   }
 
+  // Add regression line points if provided
+  let processedData = [...data];
+  if (regressionLine) {
+    const { x, y, slope, intercept } = regressionLine;
+    
+    // Sort data by x value for a clean line
+    processedData = [...data].sort((a, b) => a[x] - b[x]);
+    
+    // Calculate predicted values
+    processedData = processedData.map(point => ({
+      ...point,
+      [`${y}_predicted`]: slope * point[x] + intercept
+    }));
+  }
+
   return (
     <ChartContainer title={title} height={height}>
-      <RechartsLineChart data={data} margin={{ top: 10, right: 30, left: 30, bottom: 40 }}>
+      <RechartsLineChart data={processedData} margin={{ top: 10, right: 30, left: 30, bottom: 40 }}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey={index} />
         <YAxis tickFormatter={valueFormatter} />
@@ -104,6 +126,21 @@ export const LineChart: React.FC<LineChartProps> = ({
             strokeWidth={2}
           />
         ))}
+        
+        {/* Regression line if provided */}
+        {regressionLine && (
+          <Line
+            type="monotone"
+            dataKey={`${regressionLine.y}_predicted`}
+            stroke="#ff0000"
+            strokeWidth={2}
+            dot={false}
+            activeDot={false}
+            name={`${regressionLine.y} (predicted)`}
+            connectNulls={true}
+            strokeDasharray="5 5"
+          />
+        )}
         
         {/* Individual series with thinner, lighter lines */}
         {showIndividualSeries && individualSeries.map((series, i) => (
