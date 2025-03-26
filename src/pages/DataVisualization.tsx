@@ -10,8 +10,9 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NoDataMessage from "@/components/NoDataMessage";
-import { AreaChart, BarChart, LineChart, PieChart } from "@/components/ui/chart";
+import { AreaChart, BarChart, PieChart } from "@/components/ui/chart";
 import ParticipantTimeSeriesChart from "@/components/ParticipantTimeSeriesChart";
+import RiskScoreDistribution from "@/components/RiskScoreDistribution";
 
 const DataVisualization = () => {
   const { data, isDataLoaded } = useData();
@@ -37,23 +38,6 @@ const DataVisualization = () => {
   
   const outcomeBarData = Object.entries(outcomeCounts).map(([name, value]) => ({ name, value }));
   
-  // Risk score distribution for line chart
-  const riskGroups = ["0-20", "21-40", "41-60", "61-80", "81-100"];
-  const riskDistribution = data.reduce((acc, participant) => {
-    const score = participant.riskScore;
-    if (score <= 20) acc["0-20"] = (acc["0-20"] || 0) + 1;
-    else if (score <= 40) acc["21-40"] = (acc["21-40"] || 0) + 1;
-    else if (score <= 60) acc["41-60"] = (acc["41-60"] || 0) + 1;
-    else if (score <= 80) acc["61-80"] = (acc["61-80"] || 0) + 1;
-    else acc["81-100"] = (acc["81-100"] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const riskLineData = riskGroups.map(group => ({ 
-    name: group, 
-    value: riskDistribution[group] || 0 
-  }));
-
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Data Visualization</h1>
@@ -100,21 +84,7 @@ const DataVisualization = () => {
             </Card>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Risk Score Distribution</CardTitle>
-              <CardDescription>Number of participants by risk score range</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[300px]">
-              <LineChart
-                data={riskLineData}
-                index="name"
-                categories={["value"]}
-                colors={["blue"]}
-                valueFormatter={(value) => `${value} patients`}
-              />
-            </CardContent>
-          </Card>
+          <RiskScoreDistribution />
         </TabsContent>
         
         <TabsContent value="table">

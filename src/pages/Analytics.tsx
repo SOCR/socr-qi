@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useData } from "@/context/DataContext";
 import { 
@@ -12,7 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import NoDataMessage from "@/components/NoDataMessage";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { PieChart, BarChart, LineChart } from "@/components/ui/chart";
+import { PieChart, BarChart } from "@/components/ui/chart";
+import QualityScoreTrend from "@/components/QualityScoreTrend";
 
 // Simple analytics functions
 const calculateCorrelation = (x: number[], y: number[]): number => {
@@ -182,22 +182,11 @@ const Analytics = () => {
     const treatmentEffectiveness = data.flatMap(p => p.treatments).reduce((sum, t) => sum + t.effectiveness, 0) / 
       data.flatMap(p => p.treatments).length;
     
-    // 5. Quality Trends over Time (simplified)
-    const trends = [
-      { month: "Jan", score: 72 },
-      { month: "Feb", score: 75 },
-      { month: "Mar", score: 79 },
-      { month: "Apr", score: 76 },
-      { month: "May", score: 82 },
-      { month: "Jun", score: 85 },
-    ];
-    
     setQualityMetrics({
       improvementRate: (improvementRate * 100).toFixed(1),
       avgLOS: avgLOS.toFixed(1),
       unitRiskScores,
       treatmentEffectiveness: treatmentEffectiveness.toFixed(1),
-      trends,
     });
   };
 
@@ -392,20 +381,7 @@ const Analytics = () => {
                     </Card>
                   </div>
 
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Quality Score Trend</CardTitle>
-                    </CardHeader>
-                    <CardContent className="h-[250px]">
-                      <LineChart
-                        data={qualityMetrics.trends}
-                        index="month"
-                        categories={["score"]}
-                        colors={["blue"]}
-                        valueFormatter={(value) => `${value}`}
-                      />
-                    </CardContent>
-                  </Card>
+                  <QualityScoreTrend />
 
                   <div>
                     <h3 className="text-lg font-medium mb-3">Readmission Risk by Unit</h3>

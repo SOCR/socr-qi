@@ -35,6 +35,7 @@ interface LineChartProps {
   }[];
   showIndividualSeries?: boolean;
   individualSeriesPattern?: string;
+  individualSeriesCategories?: string[];
   strokeDasharray?: string;
 }
 
@@ -52,12 +53,15 @@ export const LineChart: React.FC<LineChartProps> = ({
   confidenceBandCategories = [],
   showIndividualSeries = false,
   individualSeriesPattern = "",
+  individualSeriesCategories = [],
   strokeDasharray = "3 3"
 }) => {
-  // Extract individual series if a pattern is provided
-  const individualSeries: string[] = [];
+  // Extract individual series if a pattern is provided and no specific categories are provided
+  const individualSeries: string[] = individualSeriesCategories.length > 0 
+    ? individualSeriesCategories 
+    : [];
   
-  if (showIndividualSeries && individualSeriesPattern) {
+  if (showIndividualSeries && individualSeriesPattern && individualSeriesCategories.length === 0) {
     // Find all keys in data that match the pattern
     if (data.length > 0) {
       Object.keys(data[0]).forEach(key => {
