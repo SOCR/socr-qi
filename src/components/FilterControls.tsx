@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,7 +45,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
   setShowConfidenceBands,
 }) => {
   // Convert participants from {id, label} format to {value, label} format for MultipleSelect
-  const participantOptions = React.useMemo(() => {
+  const participantOptions = useMemo(() => {
     return participants.map(participant => ({
       value: participant.id,
       label: participant.label
@@ -115,6 +115,11 @@ const FilterControls: React.FC<FilterControlsProps> = ({
               onCheckedChange={(checked) => {
                 if (typeof checked === 'boolean') {
                   setShowAggregateAverage(checked);
+                  
+                  // If turning off aggregate average, also turn off confidence bands
+                  if (!checked) {
+                    setShowConfidenceBands(false);
+                  }
                 }
               }}
             />

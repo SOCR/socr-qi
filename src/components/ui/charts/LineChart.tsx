@@ -13,6 +13,12 @@ import {
 } from "recharts";
 import ChartContainer from "./ChartContainer";
 
+interface ConfidenceBandCategory {
+  upper: string;
+  lower: string;
+  target: string;
+}
+
 interface LineChartProps {
   data: any[];
   index: string;
@@ -20,7 +26,7 @@ interface LineChartProps {
   colors?: string[];
   valueFormatter?: (value: number) => string;
   showConfidenceBands?: boolean;
-  confidenceBandCategories?: string[];
+  confidenceBandCategories?: ConfidenceBandCategory[];
   height?: number;
   showLegend?: boolean;
   yAxisLabel?: string;
@@ -89,23 +95,25 @@ export const LineChart = ({
         {/* Render confidence bands if enabled */}
         {showConfidenceBands &&
           confidenceBandCategories.map((category, idx) => {
-            const baseCat = category.replace(/_upper$|_lower$/, "");
-            if (category.endsWith("_upper")) {
-              const lowerCat = `${baseCat}_lower`;
-              return (
-                <Line
-                  key={`band-${idx}`}
-                  type="monotone"
-                  dataKey={category}
-                  stroke="none"
-                  dot={false}
-                  activeDot={false}
-                  fill={getColor(idx)}
-                  fillOpacity={0.1}
-                />
-              );
+            // Skip if category is not properly structured
+            if (!category || typeof category !== 'object' || !('upper' in category) || !('lower' in category)) {
+              return null;
             }
-            return null;
+            
+            const { upper, lower, target } = category;
+            
+            return (
+              <Line
+                key={`band-${idx}-${upper}`}
+                type="monotone"
+                dataKey={upper}
+                stroke="none"
+                dot={false}
+                activeDot={false}
+                fill={getColor(idx)}
+                fillOpacity={0.1}
+              />
+            );
           })}
 
         {/* Render the actual lines */}

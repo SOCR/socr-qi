@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useData } from "@/context/DataContext";
 import { 
   Card, 
@@ -14,9 +14,11 @@ import FilterControls from "./FilterControls";
 import ChartLegend from "./ChartLegend";
 import { LineChart } from "@/components/ui/charts";
 import { useChartCategories } from "@/hooks/useChartCategories";
+import { useToast } from "@/components/ui/use-toast";
 
 const TemporalTrends = () => {
   const { data } = useData();
+  const { toast } = useToast();
   const [filterType, setFilterType] = useState<string>('all');
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
@@ -24,6 +26,8 @@ const TemporalTrends = () => {
   const [showIndividualCourses, setShowIndividualCourses] = useState<boolean>(true);
   const [showAggregateAverage, setShowAggregateAverage] = useState<boolean>(true);
   const [showConfidenceBands, setShowConfidenceBands] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>("vitals");
   
   // Get unique conditions, units, and participants
   const conditions = Array.from(new Set(data.map(p => p.condition))).sort();
@@ -32,15 +36,34 @@ const TemporalTrends = () => {
   
   // Filter data based on selection
   const getFilteredData = () => {
-    if (filterType === 'condition' && selectedConditions.length > 0) {
-      return data.filter(p => selectedConditions.includes(p.condition));
-    } else if (filterType === 'unit' && selectedUnits.length > 0) {
-      return data.filter(p => selectedUnits.includes(p.unit));
-    } else if (filterType === 'participant' && selectedParticipants.length > 0) {
-      return data.filter(p => selectedParticipants.includes(p.id));
+    try {
+      if (filterType === 'condition' && selectedConditions.length > 0) {
+        return data.filter(p => selectedConditions.includes(p.condition));
+      } else if (filterType === 'unit' && selectedUnits.length > 0) {
+        return data.filter(p => selectedUnits.includes(p.unit));
+      } else if (filterType === 'participant' && selectedParticipants.length > 0) {
+        return data.filter(p => selectedParticipants.includes(p.id));
+      }
+      return data;
+    } catch (error) {
+      console.error("Error filtering data:", error);
+      toast({
+        title: "Error filtering data",
+        description: "There was a problem filtering the data. Please try again.",
+        variant: "destructive"
+      });
+      return data;
     }
-    return data;
   };
+  
+  useEffect(() => {
+    setIsLoading(true);
+    // Add a small delay to allow the UI to update
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [filterType, selectedConditions, selectedUnits, selectedParticipants]);
   
   const filteredData = getFilteredData();
   const temporalData = useTemporalData(filteredData);
@@ -254,102 +277,114 @@ const TemporalTrends = () => {
           />
         </div>
         
-        <Tabs defaultValue="vitals">
-          <TabsList>
-            <TabsTrigger value="vitals">Vital Signs</TabsTrigger>
-            <TabsTrigger value="bloodPressure">Blood Pressure</TabsTrigger>
-            <TabsTrigger value="oxygen">Oxygen & Temperature</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="vitals">
-            <LineChart
-              data={temporalData}
-              index="month"
-              categories={vitalSignsCategories.categories}
-              valueFormatter={(value) => `${Math.round(value)}`}
-              height={250}
-              showConfidenceBands={showConfidenceBands}
-              confidenceBandCategories={vitalSignsCategories.confidenceBandCategories}
-            />
-            <ChartLegend
-              items={vitalSignsCategories.legendItems}
-              filterType={filterType}
-              selectedConditions={selectedConditions}
-              selectedUnits={selectedUnits}
-              selectedParticipants={selectedParticipants}
-            />
-          </TabsContent>
-          
-          <TabsContent value="bloodPressure">
-            <LineChart
-              data={temporalData}
-              index="month"
-              categories={[
-                ...bpCategories.categories,
-                ...bpDiastolicCategories.categories
-              ]}
-              valueFormatter={(value) => `${Math.round(value)}`}
-              height={250}
-              showConfidenceBands={showConfidenceBands}
-              confidenceBandCategories={[
-                ...bpCategories.confidenceBandCategories,
-                ...bpDiastolicCategories.confidenceBandCategories
-              ]}
-            />
-            <ChartLegend
-              items={getBpLegendItems()}
-              filterType={filterType}
-              selectedConditions={selectedConditions}
-              selectedUnits={selectedUnits}
-              selectedParticipants={selectedParticipants}
-            />
-          </TabsContent>
-          
-          <TabsContent value="oxygen">
-            <LineChart
-              data={temporalData}
-              index="month"
-              categories={[
-                ...oxygenCategories.categories,
-                ...temperatureCategories.categories
-              ]}
-              valueFormatter={(value) => `${value.toFixed(1)}`}
-              height={250}
-              showConfidenceBands={showConfidenceBands}
-              confidenceBandCategories={[
-                ...oxygenCategories.confidenceBandCategories,
-                ...temperatureCategories.confidenceBandCategories
-              ]}
-            />
-            <ChartLegend
-              items={getOxygenTempLegendItems()}
-              filterType={filterType}
-              selectedConditions={selectedConditions}
-              selectedUnits={selectedUnits}
-              selectedParticipants={selectedParticipants}
-            />
-          </TabsContent>
-        </Tabs>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-[300px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          </div>
+        ) : temporalData.length === 0 ? (
+          <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-md">
+            <p className="text-gray-500">No data available for the selected filters</p>
+          </div>
+        ) : (
+          <>
+            <Tabs defaultValue="vitals" value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="vitals">Vital Signs</TabsTrigger>
+                <TabsTrigger value="bloodPressure">Blood Pressure</TabsTrigger>
+                <TabsTrigger value="oxygen">Oxygen & Temperature</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="vitals">
+                <LineChart
+                  data={temporalData}
+                  index="month"
+                  categories={vitalSignsCategories.categories}
+                  valueFormatter={(value) => `${Math.round(value)}`}
+                  height={250}
+                  showConfidenceBands={showConfidenceBands}
+                  confidenceBandCategories={vitalSignsCategories.confidenceBandCategories}
+                />
+                <ChartLegend
+                  items={vitalSignsCategories.legendItems}
+                  filterType={filterType}
+                  selectedConditions={selectedConditions}
+                  selectedUnits={selectedUnits}
+                  selectedParticipants={selectedParticipants}
+                />
+              </TabsContent>
+              
+              <TabsContent value="bloodPressure">
+                <LineChart
+                  data={temporalData}
+                  index="month"
+                  categories={[
+                    ...bpCategories.categories,
+                    ...bpDiastolicCategories.categories
+                  ]}
+                  valueFormatter={(value) => `${Math.round(value)}`}
+                  height={250}
+                  showConfidenceBands={showConfidenceBands}
+                  confidenceBandCategories={[
+                    ...bpCategories.confidenceBandCategories,
+                    ...bpDiastolicCategories.confidenceBandCategories
+                  ]}
+                />
+                <ChartLegend
+                  items={getBpLegendItems()}
+                  filterType={filterType}
+                  selectedConditions={selectedConditions}
+                  selectedUnits={selectedUnits}
+                  selectedParticipants={selectedParticipants}
+                />
+              </TabsContent>
+              
+              <TabsContent value="oxygen">
+                <LineChart
+                  data={temporalData}
+                  index="month"
+                  categories={[
+                    ...oxygenCategories.categories,
+                    ...temperatureCategories.categories
+                  ]}
+                  valueFormatter={(value) => `${value.toFixed(1)}`}
+                  height={250}
+                  showConfidenceBands={showConfidenceBands}
+                  confidenceBandCategories={[
+                    ...oxygenCategories.confidenceBandCategories,
+                    ...temperatureCategories.confidenceBandCategories
+                  ]}
+                />
+                <ChartLegend
+                  items={getOxygenTempLegendItems()}
+                  filterType={filterType}
+                  selectedConditions={selectedConditions}
+                  selectedUnits={selectedUnits}
+                  selectedParticipants={selectedParticipants}
+                />
+              </TabsContent>
+            </Tabs>
 
-        <div className="mt-4 text-sm text-muted-foreground">
-          <p>
-            These charts display how key health indicators have changed over time
-            {filterType !== 'all' 
-              ? filterType === 'condition'
-                ? ` for patients with ${selectedConditions.length > 1 ? 'selected conditions' : selectedConditions[0] || 'any condition'}`
-                : filterType === 'unit'
-                  ? ` in the ${selectedUnits.length > 1 ? 'selected units' : selectedUnits[0] || 'any unit'}`
-                  : ` for ${selectedParticipants.length} selected participants`
-              : " across all participants"
-            }.
-            {showIndividualCourses && 
-              " Individual time courses are shown to highlight variations between entities."
-            }
-            {showConfidenceBands && showAggregateAverage && 
-              " Confidence bands indicate the statistical reliability of the average values."
-            }
-          </p>
-        </div>
+            <div className="mt-4 text-sm text-muted-foreground">
+              <p>
+                These charts display how key health indicators have changed over time
+                {filterType !== 'all' 
+                  ? filterType === 'condition'
+                    ? ` for patients with ${selectedConditions.length > 1 ? 'selected conditions' : selectedConditions[0] || 'any condition'}`
+                    : filterType === 'unit'
+                      ? ` in the ${selectedUnits.length > 1 ? 'selected units' : selectedUnits[0] || 'any unit'}`
+                      : ` for ${selectedParticipants.length} selected participants`
+                  : " across all participants"
+                }.
+                {showIndividualCourses && 
+                  " Individual time courses are shown to highlight variations between entities."
+                }
+                {showConfidenceBands && showAggregateAverage && 
+                  " Confidence bands indicate the statistical reliability of the average values."
+                }
+              </p>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

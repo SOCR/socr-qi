@@ -12,6 +12,12 @@ interface ChartCategoriesOptions {
   showConfidenceBands?: boolean;
 }
 
+interface ConfidenceBandCategory {
+  upper: string;
+  lower: string;
+  target: string;
+}
+
 export const useChartCategories = (options: ChartCategoriesOptions) => {
   const {
     metric,
@@ -26,7 +32,7 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
 
   return useMemo(() => {
     const categories: string[] = [];
-    const confidenceBandCategories: string[] = [];
+    const confidenceBandCategories: ConfidenceBandCategory[] = [];
     const legendItems: { label: string; color: string }[] = [];
 
     // Metric name mapping
@@ -78,7 +84,7 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
           upper: `${metricInfo.avgPrefix}_upper`,
           lower: `${metricInfo.avgPrefix}_lower`,
           target: metricInfo.avgPrefix
-        } as any);
+        });
       }
     }
     
@@ -99,7 +105,7 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
               upper: `${condition}_${metricInfo.avgPrefix}_upper`,
               lower: `${condition}_${metricInfo.avgPrefix}_lower`,
               target: key
-            } as any);
+            });
           }
         });
       } 
@@ -118,7 +124,7 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
               upper: `${unit}_${metricInfo.avgPrefix}_upper`,
               lower: `${unit}_${metricInfo.avgPrefix}_lower`,
               target: key
-            } as any);
+            });
           }
         });
       }
