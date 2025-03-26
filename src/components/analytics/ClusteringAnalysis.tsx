@@ -59,9 +59,11 @@ const ClusteringAnalysis: React.FC<ClusteringAnalysisProps> = ({
           outcome: p.outcome,
           cluster: p.cluster
         }))}
-        xAxis={variableOptions.find(v => v.value === variable1)?.label || variable1}
-        yAxis={variableOptions.find(v => v.value === variable2)?.label || variable2}
-        colorByCluster={true}
+        xAxisKey="x"
+        yAxisKey="y"
+        xAxisLabel={variableOptions.find(v => v.value === variable1)?.label || variable1}
+        yAxisLabel={variableOptions.find(v => v.value === variable2)?.label || variable2}
+        colorBy="cluster"
         height={350}
       />
       

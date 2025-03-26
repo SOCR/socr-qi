@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React from "react";
 import {
   Select,
   SelectContent,
@@ -10,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import MultipleSelect from "@/components/ui/multiple-select";
 import { useData } from "@/context/DataContext";
+import { Participant } from "@/context/DataContext";
 
 interface MultiParticipantChartControlsProps {
   selectedMetric: string;
@@ -149,7 +151,7 @@ const MultiParticipantChartControls = ({
             <MultipleSelect
               options={participants.map((p) => ({
                 value: p.id,
-                label: `${p.id} (${p.condition})`,
+                label: p.label
               }))}
               selectedValues={selectedParticipantIds}
               onChange={setSelectedParticipantIds}

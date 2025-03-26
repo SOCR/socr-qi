@@ -128,8 +128,10 @@ const CorrelationAnalysis: React.FC<CorrelationAnalysisProps> = ({
           <CardContent>
             <ScatterChart
               data={analysisResults.scatterData}
-              xAxis={variableOptions.find(v => v.value === xVariable)?.label || xVariable}
-              yAxis={variableOptions.find(v => v.value === yVariable)?.label || yVariable}
+              xAxisKey="x"
+              yAxisKey="y"
+              xAxisLabel={variableOptions.find(v => v.value === xVariable)?.label || xVariable}
+              yAxisLabel={variableOptions.find(v => v.value === yVariable)?.label || yVariable}
               regressionLine={analysisResults.regressionPoints}
               height={300}
             />

@@ -9,20 +9,26 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ZAxis
+  ZAxis,
+  Line
 } from "recharts";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface ScatterChartProps {
   data: any[];
-  xAxisKey: string;
-  yAxisKey: string;
+  xAxisKey?: string;
+  yAxisKey?: string;
   xAxisLabel?: string;
   yAxisLabel?: string;
   tooltipLabel?: string;
   tooltipValueFormatter?: (value: any) => string;
   height?: number;
-  colorBy?: "condition" | "unit" | "outcome";
+  colorBy?: "condition" | "unit" | "outcome" | "cluster";
+  // For backward compatibility
+  xAxis?: string;
+  yAxis?: string;
+  colorByCluster?: boolean;
+  regressionLine?: { x: number; y: number }[];
 }
 
 const ScatterChart: React.FC<ScatterChartProps> = ({
@@ -34,17 +40,29 @@ const ScatterChart: React.FC<ScatterChartProps> = ({
   tooltipLabel = "Value",
   tooltipValueFormatter = (value) => `${value}`,
   height = 300,
-  colorBy = "condition"
+  colorBy = "condition",
+  // Handle backward compatibility
+  xAxis,
+  yAxis,
+  colorByCluster = false,
+  regressionLine
 }) => {
+  // Backward compatibility - map old prop names to new ones
+  const effectiveXAxisKey = xAxisKey || (xAxis ? "x" : "x");
+  const effectiveYAxisKey = yAxisKey || (yAxis ? "y" : "y");
+  const effectiveXAxisLabel = xAxisLabel || xAxis || effectiveXAxisKey;
+  const effectiveYAxisLabel = yAxisLabel || yAxis || effectiveYAxisKey;
+  const effectiveColorBy = colorByCluster ? "cluster" : colorBy;
+
   // Group data by the coloring dimension
   const groupedData = data.reduce((acc, item) => {
-    const key = item[colorBy] || "Unknown";
+    const key = item[effectiveColorBy] || "Unknown";
     if (!acc[key]) {
       acc[key] = [];
     }
     acc[key].push(item);
     return acc;
-  }, {});
+  }, {} as Record<string, any[]>);
 
   // Generate colors for each group
   const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
@@ -64,20 +82,20 @@ const ScatterChart: React.FC<ScatterChartProps> = ({
             <CartesianGrid />
             <XAxis 
               type="number" 
-              dataKey={xAxisKey} 
-              name={xAxisLabel || xAxisKey} 
+              dataKey={effectiveXAxisKey} 
+              name={effectiveXAxisLabel} 
               label={{ 
-                value: xAxisLabel || xAxisKey, 
+                value: effectiveXAxisLabel, 
                 position: "bottom",
                 style: { textAnchor: "middle" }
               }}
             />
             <YAxis 
               type="number" 
-              dataKey={yAxisKey} 
-              name={yAxisLabel || yAxisKey} 
+              dataKey={effectiveYAxisKey} 
+              name={effectiveYAxisLabel} 
               label={{ 
-                value: yAxisLabel || yAxisKey, 
+                value: effectiveYAxisLabel, 
                 angle: -90, 
                 position: "left",
                 style: { textAnchor: "middle" }
@@ -98,6 +116,21 @@ const ScatterChart: React.FC<ScatterChartProps> = ({
                 shape="circle"
               />
             ))}
+
+            {/* Render regression line if provided */}
+            {regressionLine && regressionLine.length >= 2 && (
+              <Line
+                type="linear"
+                dataKey="y"
+                data={regressionLine}
+                stroke="#ff7300"
+                strokeWidth={2}
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+                name="Regression Line"
+              />
+            )}
           </RechartsScatterChart>
         </ResponsiveContainer>
       </CardContent>

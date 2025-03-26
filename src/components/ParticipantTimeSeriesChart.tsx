@@ -22,6 +22,7 @@ const ParticipantTimeSeriesChart = () => {
   const [showConfidenceBands, setShowConfidenceBands] = useState(false);
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
+  const [filterType, setFilterType] = useState<string>("participant");
   
   // Get the time series data for selected participants
   const timeSeriesData = useParticipantTimeSeriesData(data, {
@@ -178,17 +179,26 @@ const ParticipantTimeSeriesChart = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         <MultiParticipantChartControls
-          data={data}
-          selectedParticipantIds={selectedParticipantIds}
-          setSelectedParticipantIds={setSelectedParticipantIds}
           selectedMetric={selectedMetric}
-          setSelectedMetric={setSelectedMetric}
-          compareToConditionMean={compareToConditionMean}
-          setCompareToConditionMean={setCompareToConditionMean}
-          compareToUnitMean={compareToUnitMean}
-          setCompareToUnitMean={setCompareToUnitMean}
+          onMetricChange={setSelectedMetric}
+          filterType={filterType}
+          onFilterTypeChange={setFilterType}
+          compareToMean={compareToConditionMean || compareToUnitMean}
+          setCompareToMean={(val) => {
+            if (filterType === 'condition') {
+              setCompareToConditionMean(val);
+              setCompareToUnitMean(false);
+            } else if (filterType === 'unit') {
+              setCompareToUnitMean(val);
+              setCompareToConditionMean(false);
+            } else {
+              setCompareToConditionMean(val);
+            }
+          }}
           showConfidenceBands={showConfidenceBands}
           setShowConfidenceBands={setShowConfidenceBands}
+          selectedParticipantIds={selectedParticipantIds}
+          setSelectedParticipantIds={setSelectedParticipantIds}
           selectedConditions={selectedConditions}
           setSelectedConditions={setSelectedConditions}
           selectedUnits={selectedUnits}
