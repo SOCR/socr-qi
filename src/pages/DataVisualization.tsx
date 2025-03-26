@@ -9,12 +9,14 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import NoDataMessage from "@/components/NoDataMessage";
 import { AreaChart, BarChart, LineChart, PieChart } from "@/components/ui/chart";
 import ParticipantTimeSeriesChart from "@/components/ParticipantTimeSeriesChart";
 
 const DataVisualization = () => {
   const { data, isDataLoaded } = useData();
+  const [riskScoreView, setRiskScoreView] = useState<"distribution" | "temporal">("distribution");
   
   if (!isDataLoaded) {
     return <NoDataMessage />;
@@ -37,7 +39,7 @@ const DataVisualization = () => {
   
   const outcomeBarData = Object.entries(outcomeCounts).map(([name, value]) => ({ name, value }));
   
-  // Risk score distribution for line chart
+  // Risk score distribution for line chart (static)
   const riskGroups = ["0-20", "21-40", "41-60", "61-80", "81-100"];
   const riskDistribution = data.reduce((acc, participant) => {
     const score = participant.riskScore;
@@ -53,6 +55,35 @@ const DataVisualization = () => {
     name: group, 
     value: riskDistribution[group] || 0 
   }));
+
+  // Risk score temporal distribution
+  // Group by month and calculate average risk score
+  const riskByTime = data.reduce((acc, participant) => {
+    // Extract month and year from the first measurement
+    if (participant.measurements.length > 0) {
+      const dateObj = new Date(participant.measurements[0].date);
+      const monthYear = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+      
+      if (!acc[monthYear]) {
+        acc[monthYear] = {
+          month: monthYear,
+          count: 0,
+          totalRisk: 0,
+          avgRisk: 0
+        };
+      }
+      
+      acc[monthYear].count += 1;
+      acc[monthYear].totalRisk += participant.riskScore;
+    }
+    return acc;
+  }, {} as Record<string, { month: string; count: number; totalRisk: number; avgRisk: number }>);
+
+  // Calculate averages and sort by month
+  const riskTemporalData = Object.values(riskByTime).map(entry => ({
+    month: entry.month,
+    avgRisk: entry.count > 0 ? Math.round(entry.totalRisk / entry.count) : 0
+  })).sort((a, b) => a.month.localeCompare(b.month));
 
   return (
     <div className="space-y-6">
@@ -101,18 +132,49 @@ const DataVisualization = () => {
           </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Risk Score Distribution</CardTitle>
-              <CardDescription>Number of participants by risk score range</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Risk Score Analysis</CardTitle>
+                <CardDescription>Analysis of risk scores across the participant population</CardDescription>
+              </div>
+              <Select value={riskScoreView} onValueChange={(value: "distribution" | "temporal") => setRiskScoreView(value)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="View" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="distribution">Distribution</SelectItem>
+                  <SelectItem value="temporal">Temporal Trends</SelectItem>
+                </SelectContent>
+              </Select>
             </CardHeader>
             <CardContent className="h-[300px]">
-              <LineChart
-                data={riskLineData}
-                index="name"
-                categories={["value"]}
-                colors={["blue"]}
-                valueFormatter={(value) => `${value} patients`}
-              />
+              {riskScoreView === "distribution" ? (
+                <>
+                  <BarChart
+                    data={riskLineData}
+                    index="name"
+                    categories={["value"]}
+                    colors={["blue"]}
+                    valueFormatter={(value) => `${value} patients`}
+                  />
+                  <div className="mt-2 text-xs text-center text-muted-foreground">
+                    Distribution of participants by risk score range (0-100)
+                  </div>
+                </>
+              ) : (
+                <>
+                  <LineChart
+                    data={riskTemporalData}
+                    index="month"
+                    categories={["avgRisk"]}
+                    colors={["red"]}
+                    valueFormatter={(value) => `${value}`}
+                  />
+                  <div className="mt-2 text-xs text-center text-muted-foreground">
+                    Average risk score trends over time (by admission month)
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
