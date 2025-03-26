@@ -85,8 +85,8 @@ const ScatterChart: React.FC<ScatterChartProps> = ({
     return Object.entries(groups).map(([name, points], index) => ({
       name,
       points,
-      color: item.cluster !== undefined 
-        ? `hsl(${(item.cluster * 60) % 360}, 70%, 50%)` 
+      color: points[0].cluster !== undefined 
+        ? `hsl(${(points[0].cluster * 60) % 360}, 70%, 50%)` 
         : nameToHsl(name, index)
     }));
   }, [data]);

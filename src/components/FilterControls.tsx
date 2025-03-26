@@ -44,6 +44,14 @@ const FilterControls: React.FC<FilterControlsProps> = ({
   showConfidenceBands,
   setShowConfidenceBands,
 }) => {
+  // Convert participants from {id, label} format to {value, label} format
+  const participantOptions = React.useMemo(() => {
+    return participants.map(participant => ({
+      value: participant.id,
+      label: participant.label
+    }));
+  }, [participants]);
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -89,7 +97,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
         <div className="space-y-2">
           <Label>Select Participants</Label>
           <MultipleSelect
-            options={participants}
+            options={participantOptions}
             selectedValues={selectedParticipants}
             onChange={setSelectedParticipants}
             placeholder="Select participants"
