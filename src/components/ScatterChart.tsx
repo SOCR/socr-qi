@@ -7,132 +7,102 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
   Legend,
-  Label,
-  Line
+  ResponsiveContainer,
+  ZAxis
 } from "recharts";
-import { CustomTooltip } from "./ChartTooltip";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface ScatterChartProps {
   data: any[];
-  xAxis: string;
-  yAxis: string;
-  regressionLine?: { x: number; y: number }[];
-  colorByCluster?: boolean;
+  xAxisKey: string;
+  yAxisKey: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+  tooltipLabel?: string;
+  tooltipValueFormatter?: (value: any) => string;
   height?: number;
+  colorBy?: "condition" | "unit" | "outcome";
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
-const OUTCOME_COLORS = {
-  "Improved": "#4CAF50",
-  "Stable": "#2196F3",
-  "Deteriorated": "#FF9800",
-  "Transferred": "#9C27B0",
-  "Deceased": "#F44336"
-};
-
-export const ScatterChart: React.FC<ScatterChartProps> = ({
+const ScatterChart: React.FC<ScatterChartProps> = ({
   data,
-  xAxis,
-  yAxis,
-  regressionLine,
-  colorByCluster = false,
-  height = 300
+  xAxisKey,
+  yAxisKey,
+  xAxisLabel,
+  yAxisLabel,
+  tooltipLabel = "Value",
+  tooltipValueFormatter = (value) => `${value}`,
+  height = 300,
+  colorBy = "condition"
 }) => {
-  // Group data by outcome or cluster
-  const groupedData = useGroupedData(data, colorByCluster);
+  // Group data by the coloring dimension
+  const groupedData = data.reduce((acc, item) => {
+    const key = item[colorBy] || "Unknown";
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(item);
+    return acc;
+  }, {});
+
+  // Generate colors for each group
+  const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
 
   return (
-    <div className="w-full" style={{ height: `${height}px` }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <RechartsScatterChart
-          margin={{
-            top: 20,
-            right: 20,
-            bottom: 40,
-            left: 40,
-          }}
-        >
-          <CartesianGrid />
-          <XAxis 
-            type="number" 
-            dataKey="x" 
-            name={xAxis}
-            domain={['auto', 'auto']}
+    <Card>
+      <CardContent className="p-0">
+        <ResponsiveContainer width="100%" height={height}>
+          <RechartsScatterChart
+            margin={{
+              top: 20,
+              right: 20,
+              bottom: 40,
+              left: 40,
+            }}
           >
-            <Label value={xAxis} offset={-10} position="insideBottom" />
-          </XAxis>
-          <YAxis 
-            type="number" 
-            dataKey="y" 
-            name={yAxis}
-            domain={['auto', 'auto']}
-          >
-            <Label value={yAxis} angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} />
-          </YAxis>
-          <Tooltip content={<CustomTooltip />} />
-          <Legend />
-          
-          {groupedData.map((group, index) => (
-            <Scatter
-              key={group.name}
-              name={group.name}
-              data={group.data}
-              fill={colorByCluster ? COLORS[index % COLORS.length] : (OUTCOME_COLORS as any)[group.name] || COLORS[index % COLORS.length]}
+            <CartesianGrid />
+            <XAxis 
+              type="number" 
+              dataKey={xAxisKey} 
+              name={xAxisLabel || xAxisKey} 
+              label={{ 
+                value: xAxisLabel || xAxisKey, 
+                position: "bottom",
+                style: { textAnchor: "middle" }
+              }}
             />
-          ))}
-          
-          {regressionLine && (
-            <Line
-              type="linear"
-              dataKey="y"
-              data={regressionLine}
-              stroke="#ff7300"
-              strokeWidth={2}
-              dot={false}
-              activeDot={false}
-              legendType="none"
+            <YAxis 
+              type="number" 
+              dataKey={yAxisKey} 
+              name={yAxisLabel || yAxisKey} 
+              label={{ 
+                value: yAxisLabel || yAxisKey, 
+                angle: -90, 
+                position: "left",
+                style: { textAnchor: "middle" }
+              }}
             />
-          )}
-        </RechartsScatterChart>
-      </ResponsiveContainer>
-    </div>
+            <Tooltip 
+              formatter={tooltipValueFormatter}
+              labelFormatter={(label) => `${tooltipLabel}: ${label}`}
+            />
+            <Legend />
+            
+            {Object.entries(groupedData).map(([groupName, points], index) => (
+              <Scatter 
+                key={groupName}
+                name={groupName} 
+                data={points as any[]} 
+                fill={COLORS[index % COLORS.length]}
+                shape="circle"
+              />
+            ))}
+          </RechartsScatterChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
   );
-};
-
-// Extract the data grouping logic to a custom hook
-const useGroupedData = (data: any[], colorByCluster: boolean) => {
-  return React.useMemo(() => {
-    if (colorByCluster) {
-      // Group by cluster
-      const clusters: Record<string, any[]> = {};
-      data.forEach(item => {
-        const clusterKey = `Cluster ${item.cluster + 1}`;
-        if (!clusters[clusterKey]) {
-          clusters[clusterKey] = [];
-        }
-        clusters[clusterKey].push(item);
-      });
-      return Object.entries(clusters).map(([name, points]) => ({
-        name,
-        data: points
-      }));
-    } else {
-      // Group by outcome
-      const outcomes: Record<string, any[]> = {};
-      data.forEach(item => {
-        if (!outcomes[item.outcome]) {
-          outcomes[item.outcome] = [];
-        }
-        outcomes[item.outcome].push(item);
-      });
-      return Object.entries(outcomes).map(([name, points]) => ({
-        name,
-        data: points
-      }));
-    }
-  }, [data, colorByCluster]);
 };
 
 export default ScatterChart;

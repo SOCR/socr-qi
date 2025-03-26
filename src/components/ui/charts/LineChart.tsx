@@ -48,6 +48,9 @@ export const LineChart: React.FC<LineChartProps> = ({
   showConfidenceBands = false,
   confidenceBandCategories = []
 }) => {
+  // Generate a unique list of categories, ensuring no duplicates
+  const uniqueCategories = [...new Set(categories)];
+  
   return (
     <ChartContainer title={title} height={height}>
       <RechartsLineChart data={data} margin={{ top: 10, right: 30, left: 30, bottom: 40 }}>
@@ -68,7 +71,7 @@ export const LineChart: React.FC<LineChartProps> = ({
         <Legend />
         
         {/* Regular line series */}
-        {categories.map((category, i) => (
+        {uniqueCategories.map((category, i) => (
           <Line
             key={category}
             type="monotone"
@@ -77,6 +80,7 @@ export const LineChart: React.FC<LineChartProps> = ({
             activeDot={{ r: 8 }}
             name={category}
             connectNulls={true}
+            dot={uniqueCategories.length > 10 ? false : { r: 3 }}
           />
         ))}
         

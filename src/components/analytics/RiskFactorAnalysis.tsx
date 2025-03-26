@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from "react";
 import { useData, Participant } from "@/context/DataContext";
 import { 
@@ -316,24 +315,12 @@ const RiskFactorAnalysis = () => {
               <div className="h-[300px]">
                 <ScatterChart 
                   data={scatterData}
-                  xAxis={[{ 
-                    scaleType: 'linear',
-                    dataKey: 'x',
-                    label: `${getFactorName(primaryFactor)} (${getFactorUnit(primaryFactor)})`
-                  }]}
-                  yAxis={[{
-                    scaleType: 'linear',
-                    dataKey: 'y',
-                    label: `${getFactorName(secondaryFactor)} (${getFactorUnit(secondaryFactor)})`
-                  }]}
-                  series={[
-                    {
-                      dataKey: 'id',
-                      label: 'Participants',
-                      valueFormatter: (value) => `ID: ${value}`
-                    }
-                  ]}
-                  colorBy="condition"
+                  xAxisKey="x"
+                  yAxisKey="y"
+                  xAxisLabel={`${getFactorName(primaryFactor)} (${getFactorUnit(primaryFactor)})`}
+                  yAxisLabel={`${getFactorName(secondaryFactor)} (${getFactorUnit(secondaryFactor)})`}
+                  tooltipLabel="Participants"
+                  tooltipValueFormatter={(value) => `ID: ${value}`}
                 />
               </div>
               

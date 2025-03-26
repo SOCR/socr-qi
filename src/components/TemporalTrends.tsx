@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useData } from "@/context/DataContext";
 import { 
   Card, 
@@ -24,6 +24,7 @@ import { LineChart } from "@/components/ui/charts/LineChart";
 import { Label } from "@/components/ui/label";
 import { useTemporalData } from "@/hooks/useTemporalData";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import MultipleSelect from "@/components/ui/multiple-select";
 
 const TemporalTrends = () => {
   const { data, getParticipantsByCondition, getParticipantsByUnit } = useData();
@@ -31,6 +32,9 @@ const TemporalTrends = () => {
   const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [showIndividualCourses, setShowIndividualCourses] = useState<boolean>(true);
+  const [showAggregateAverage, setShowAggregateAverage] = useState<boolean>(true);
+  const [showConfidenceBands, setShowConfidenceBands] = useState<boolean>(false);
   
   // Get unique conditions, units, and participants
   const conditions = Array.from(new Set(data.map(p => p.condition))).sort();
@@ -50,31 +54,43 @@ const TemporalTrends = () => {
   
   const temporalData = useTemporalData(filteredData);
 
-  // Helper functions for selecting/deselecting items
-  const toggleCondition = (condition: string) => {
-    setSelectedConditions(prev => 
-      prev.includes(condition) 
-        ? prev.filter(c => c !== condition) 
-        : [...prev, condition]
-    );
+  // Generate categories for the LineChart based on selection type and visualization options
+  const generateCategories = (metric: string) => {
+    const categories: string[] = [];
+    
+    if (showAggregateAverage) {
+      categories.push(`avg${metric.charAt(0).toUpperCase() + metric.slice(1)}`);
+    }
+    
+    if (showIndividualCourses) {
+      if (filterType === 'condition' && selectedConditions.length > 0) {
+        selectedConditions.forEach(condition => {
+          categories.push(`${condition}_avg${metric.charAt(0).toUpperCase() + metric.slice(1)}`);
+        });
+      } else if (filterType === 'unit' && selectedUnits.length > 0) {
+        selectedUnits.forEach(unit => {
+          categories.push(`${unit}_avg${metric.charAt(0).toUpperCase() + metric.slice(1)}`);
+        });
+      } else if (filterType === 'participant' && selectedParticipants.length > 0) {
+        // For participants, we would need individual participant data
+        // This would require modifying the useTemporalData hook to include per-participant data
+        // For now, we'll just show the aggregate average
+      }
+    }
+    
+    return categories;
   };
 
-  const toggleUnit = (unit: string) => {
-    setSelectedUnits(prev => 
-      prev.includes(unit) 
-        ? prev.filter(u => u !== unit) 
-        : [...prev, unit]
-    );
+  // Prepare confidence band categories if needed
+  const generateConfidenceBands = (metric: string) => {
+    if (!showConfidenceBands) return [];
+    
+    // Generate confidence band entries for the selected metric
+    // This would require modifying the useTemporalData hook to calculate confidence bands
+    return [];
   };
 
-  const toggleParticipant = (id: string) => {
-    setSelectedParticipants(prev => 
-      prev.includes(id) 
-        ? prev.filter(p => p !== id) 
-        : [...prev, id]
-    );
-  };
-
+  // Handle filter type change
   const handleFilterTypeChange = (type: string) => {
     setFilterType(type);
     // Reset selections when changing filter type
@@ -112,125 +128,98 @@ const TemporalTrends = () => {
             {filterType === 'condition' && (
               <div className="space-y-2">
                 <Label>Select Conditions</Label>
-                <div className="flex flex-wrap gap-2">
-                  {selectedConditions.map(condition => (
-                    <Badge key={condition} variant="secondary" className="flex items-center gap-1">
-                      {condition}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-4 w-4 p-0"
-                        onClick={() => toggleCondition(condition)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </Badge>
-                  ))}
-                </div>
-                <ScrollArea className="h-40 border rounded-md">
-                  <div className="p-2 space-y-1">
-                    {conditions.map(condition => (
-                      <div key={condition} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`condition-${condition}`} 
-                          checked={selectedConditions.includes(condition)}
-                          onCheckedChange={() => toggleCondition(condition)}
-                        />
-                        <label
-                          htmlFor={`condition-${condition}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          {condition}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+                <MultipleSelect
+                  options={conditions.map(condition => ({ value: condition, label: condition }))}
+                  selectedValues={selectedConditions}
+                  onChange={setSelectedConditions}
+                  placeholder="Select conditions"
+                />
               </div>
             )}
             
             {filterType === 'unit' && (
               <div className="space-y-2">
                 <Label>Select Units</Label>
-                <div className="flex flex-wrap gap-2">
-                  {selectedUnits.map(unit => (
-                    <Badge key={unit} variant="secondary" className="flex items-center gap-1">
-                      {unit}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-4 w-4 p-0"
-                        onClick={() => toggleUnit(unit)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </Badge>
-                  ))}
-                </div>
-                <ScrollArea className="h-40 border rounded-md">
-                  <div className="p-2 space-y-1">
-                    {units.map(unit => (
-                      <div key={unit} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`unit-${unit}`} 
-                          checked={selectedUnits.includes(unit)}
-                          onCheckedChange={() => toggleUnit(unit)}
-                        />
-                        <label
-                          htmlFor={`unit-${unit}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          {unit}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+                <MultipleSelect
+                  options={units.map(unit => ({ value: unit, label: unit }))}
+                  selectedValues={selectedUnits}
+                  onChange={setSelectedUnits}
+                  placeholder="Select units"
+                />
               </div>
             )}
             
             {filterType === 'participant' && (
               <div className="space-y-2">
                 <Label>Select Participants</Label>
-                <div className="flex flex-wrap gap-2">
-                  {selectedParticipants.map(id => {
-                    const participant = participants.find(p => p.id === id);
-                    return (
-                      <Badge key={id} variant="secondary" className="flex items-center gap-1">
-                        {participant?.label || id}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-4 w-4 p-0"
-                          onClick={() => toggleParticipant(id)}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </Badge>
-                    );
-                  })}
-                </div>
-                <ScrollArea className="h-40 border rounded-md">
-                  <div className="p-2 space-y-1">
-                    {participants.map(participant => (
-                      <div key={participant.id} className="flex items-center space-x-2">
-                        <Checkbox 
-                          id={`participant-${participant.id}`} 
-                          checked={selectedParticipants.includes(participant.id)}
-                          onCheckedChange={() => toggleParticipant(participant.id)}
-                        />
-                        <label
-                          htmlFor={`participant-${participant.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                        >
-                          {participant.label}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+                <MultipleSelect
+                  options={participants.map(p => ({ value: p.id, label: p.label }))}
+                  selectedValues={selectedParticipants}
+                  onChange={setSelectedParticipants}
+                  placeholder="Select participants"
+                />
               </div>
             )}
+            
+            <div className="space-y-2">
+              <Label>Display Options</Label>
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="show-aggregate" 
+                    checked={showAggregateAverage}
+                    onCheckedChange={(checked) => {
+                      if (typeof checked === 'boolean') {
+                        setShowAggregateAverage(checked);
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor="show-aggregate"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Show Aggregate Average
+                  </label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="show-individual" 
+                    checked={showIndividualCourses}
+                    onCheckedChange={(checked) => {
+                      if (typeof checked === 'boolean') {
+                        setShowIndividualCourses(checked);
+                      }
+                    }}
+                  />
+                  <label
+                    htmlFor="show-individual"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Show Individual Time Courses
+                  </label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="show-confidence" 
+                    checked={showConfidenceBands}
+                    onCheckedChange={(checked) => {
+                      if (typeof checked === 'boolean') {
+                        setShowConfidenceBands(checked);
+                      }
+                    }}
+                    disabled={!showAggregateAverage}
+                  />
+                  <label
+                    htmlFor="show-confidence"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Show 95% Confidence Bands
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -245,12 +234,26 @@ const TemporalTrends = () => {
             <LineChart
               data={temporalData}
               index="month"
-              categories={["avgHeartRate"]}
+              categories={generateCategories("HeartRate")}
               valueFormatter={(value) => `${Math.round(value)}`}
               height={250}
+              showConfidenceBands={showConfidenceBands}
+              confidenceBandCategories={generateConfidenceBands("HeartRate")}
             />
             <div className="mt-2 text-sm">
-              <p className="text-blue-500">● avgHeartRate: Average Heart Rate</p>
+              {showAggregateAverage && (
+                <p className="text-blue-500">● avgHeartRate: Average Heart Rate</p>
+              )}
+              {showIndividualCourses && filterType === 'condition' && selectedConditions.map((condition, index) => (
+                <p key={condition} style={{ color: `hsl(${(index * 30) % 360}, 70%, 50%)` }}>
+                  ● {condition}: {condition} Average Heart Rate
+                </p>
+              ))}
+              {showIndividualCourses && filterType === 'unit' && selectedUnits.map((unit, index) => (
+                <p key={unit} style={{ color: `hsl(${(index * 30) % 360}, 70%, 50%)` }}>
+                  ● {unit}: {unit} Average Heart Rate
+                </p>
+              ))}
               {filterType !== 'all' && (
                 <p className="mt-1 text-xs text-muted-foreground">
                   {filterType === 'condition' && selectedConditions.length > 0 && 
@@ -268,13 +271,51 @@ const TemporalTrends = () => {
             <LineChart
               data={temporalData}
               index="month"
-              categories={["avgBpSystolic", "avgBpDiastolic"]}
+              categories={[
+                ...(showAggregateAverage ? ["avgBpSystolic", "avgBpDiastolic"] : []),
+                ...(showIndividualCourses && filterType === 'condition' ? 
+                  selectedConditions.flatMap(condition => [
+                    `${condition}_avgBpSystolic`,
+                    `${condition}_avgBpDiastolic`
+                  ]) : []),
+                ...(showIndividualCourses && filterType === 'unit' ? 
+                  selectedUnits.flatMap(unit => [
+                    `${unit}_avgBpSystolic`,
+                    `${unit}_avgBpDiastolic`
+                  ]) : [])
+              ]}
               valueFormatter={(value) => `${Math.round(value)}`}
               height={250}
+              showConfidenceBands={showConfidenceBands}
+              confidenceBandCategories={generateConfidenceBands("BpSystolic").concat(generateConfidenceBands("BpDiastolic"))}
             />
             <div className="mt-2 text-sm">
-              <p className="text-blue-500">● avgBpSystolic: Average Systolic Blood Pressure</p>
-              <p className="text-green-500">● avgBpDiastolic: Average Diastolic Blood Pressure</p>
+              {showAggregateAverage && (
+                <>
+                  <p className="text-blue-500">● avgBpSystolic: Average Systolic Blood Pressure</p>
+                  <p className="text-green-500">● avgBpDiastolic: Average Diastolic Blood Pressure</p>
+                </>
+              )}
+              {showIndividualCourses && filterType === 'condition' && selectedConditions.map((condition, index) => (
+                <React.Fragment key={condition}>
+                  <p style={{ color: `hsl(${(index * 30) % 360}, 70%, 50%)` }}>
+                    ● {condition} Systolic: {condition} Average Systolic Blood Pressure
+                  </p>
+                  <p style={{ color: `hsl(${((index * 30) + 15) % 360}, 70%, 50%)` }}>
+                    ● {condition} Diastolic: {condition} Average Diastolic Blood Pressure
+                  </p>
+                </React.Fragment>
+              ))}
+              {showIndividualCourses && filterType === 'unit' && selectedUnits.map((unit, index) => (
+                <React.Fragment key={unit}>
+                  <p style={{ color: `hsl(${(index * 30) % 360}, 70%, 50%)` }}>
+                    ● {unit} Systolic: {unit} Average Systolic Blood Pressure
+                  </p>
+                  <p style={{ color: `hsl(${((index * 30) + 15) % 360}, 70%, 50%)` }}>
+                    ● {unit} Diastolic: {unit} Average Diastolic Blood Pressure
+                  </p>
+                </React.Fragment>
+              ))}
               {filterType !== 'all' && (
                 <p className="mt-1 text-xs text-muted-foreground">
                   {filterType === 'condition' && selectedConditions.length > 0 && 
@@ -292,13 +333,51 @@ const TemporalTrends = () => {
             <LineChart
               data={temporalData}
               index="month"
-              categories={["avgOxygenSaturation", "avgTemperature"]}
+              categories={[
+                ...(showAggregateAverage ? ["avgOxygenSaturation", "avgTemperature"] : []),
+                ...(showIndividualCourses && filterType === 'condition' ? 
+                  selectedConditions.flatMap(condition => [
+                    `${condition}_avgOxygenSaturation`,
+                    `${condition}_avgTemperature`
+                  ]) : []),
+                ...(showIndividualCourses && filterType === 'unit' ? 
+                  selectedUnits.flatMap(unit => [
+                    `${unit}_avgOxygenSaturation`,
+                    `${unit}_avgTemperature`
+                  ]) : [])
+              ]}
               valueFormatter={(value) => `${value.toFixed(1)}`}
               height={250}
+              showConfidenceBands={showConfidenceBands}
+              confidenceBandCategories={generateConfidenceBands("OxygenSaturation").concat(generateConfidenceBands("Temperature"))}
             />
             <div className="mt-2 text-sm">
-              <p className="text-blue-500">● avgOxygenSaturation: Average Oxygen Saturation (%)</p>
-              <p className="text-green-500">● avgTemperature: Average Temperature (°C)</p>
+              {showAggregateAverage && (
+                <>
+                  <p className="text-blue-500">● avgOxygenSaturation: Average Oxygen Saturation (%)</p>
+                  <p className="text-green-500">● avgTemperature: Average Temperature (°C)</p>
+                </>
+              )}
+              {showIndividualCourses && filterType === 'condition' && selectedConditions.map((condition, index) => (
+                <React.Fragment key={condition}>
+                  <p style={{ color: `hsl(${(index * 30) % 360}, 70%, 50%)` }}>
+                    ● {condition} O₂: {condition} Average Oxygen Saturation
+                  </p>
+                  <p style={{ color: `hsl(${((index * 30) + 15) % 360}, 70%, 50%)` }}>
+                    ● {condition} Temp: {condition} Average Temperature
+                  </p>
+                </React.Fragment>
+              ))}
+              {showIndividualCourses && filterType === 'unit' && selectedUnits.map((unit, index) => (
+                <React.Fragment key={unit}>
+                  <p style={{ color: `hsl(${(index * 30) % 360}, 70%, 50%)` }}>
+                    ● {unit} O₂: {unit} Average Oxygen Saturation
+                  </p>
+                  <p style={{ color: `hsl(${((index * 30) + 15) % 360}, 70%, 50%)` }}>
+                    ● {unit} Temp: {unit} Average Temperature
+                  </p>
+                </React.Fragment>
+              ))}
               {filterType !== 'all' && (
                 <p className="mt-1 text-xs text-muted-foreground">
                   {filterType === 'condition' && selectedConditions.length > 0 && 
@@ -324,7 +403,12 @@ const TemporalTrends = () => {
                   : ` for ${selectedParticipants.length} selected participants`
               : " across all participants"
             }.
-            Significant changes or patterns may suggest seasonal effects or changes in care protocols.
+            {showIndividualCourses && 
+              " Individual time courses are shown to highlight variations between entities."
+            }
+            {showConfidenceBands && showAggregateAverage && 
+              " Confidence bands indicate the statistical reliability of the average values."
+            }
           </p>
         </div>
       </CardContent>

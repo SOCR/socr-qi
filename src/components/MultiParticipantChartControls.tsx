@@ -1,157 +1,189 @@
-
-import { useState } from "react";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import React, { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import { Participant } from "@/context/DataContext";
-import { 
-  Checkbox 
-} from "@/components/ui/checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import MultipleSelect from "./ui/multiple-select";
+import MultipleSelect from "@/components/ui/multiple-select";
+import { useData } from "@/context/DataContext";
 
 interface MultiParticipantChartControlsProps {
-  data: Participant[];
+  selectedMetric: string;
+  onMetricChange: (metric: string) => void;
+  filterType: string;
+  onFilterTypeChange: (type: string) => void;
+  compareToMean: boolean;
+  setCompareToMean: (compareToMean: boolean) => void;
+  showConfidenceBands: boolean;
+  setShowConfidenceBands: (showConfidenceBands: boolean) => void;
   selectedParticipantIds: string[];
   setSelectedParticipantIds: (ids: string[]) => void;
-  selectedMetric: string;
-  setSelectedMetric: (metric: string) => void;
-  compareToConditionMean: boolean;
-  setCompareToConditionMean: (compare: boolean) => void;
-  compareToUnitMean: boolean;
-  setCompareToUnitMean: (compare: boolean) => void;
-  showConfidenceBands: boolean;
-  setShowConfidenceBands: (show: boolean) => void;
-  selectedConditions?: string[];
-  setSelectedConditions?: (conditions: string[]) => void;
-  selectedUnits?: string[];
-  setSelectedUnits?: (units: string[]) => void;
+  selectedConditions: string[];
+  setSelectedConditions: (conditions: string[]) => void;
+  selectedUnits: string[];
+  setSelectedUnits: (units: string[]) => void;
 }
 
-const MultiParticipantChartControls = ({ 
-  data,
-  selectedParticipantIds,
-  setSelectedParticipantIds,
+const MultiParticipantChartControls = ({
   selectedMetric,
-  setSelectedMetric,
-  compareToConditionMean,
-  setCompareToConditionMean,
-  compareToUnitMean,
-  setCompareToUnitMean,
+  onMetricChange,
+  filterType,
+  onFilterTypeChange,
+  compareToMean,
+  setCompareToMean,
   showConfidenceBands,
   setShowConfidenceBands,
-  selectedConditions = [],
-  setSelectedConditions = () => {},
-  selectedUnits = [],
-  setSelectedUnits = () => {}
+  selectedParticipantIds,
+  setSelectedParticipantIds,
+  selectedConditions,
+  setSelectedConditions,
+  selectedUnits,
+  setSelectedUnits,
 }: MultiParticipantChartControlsProps) => {
-  // Get the unique list of all conditions
-  const allConditions = Array.from(new Set(data.map(p => p.condition)));
-  
-  // Get the unique list of all units
-  const allUnits = Array.from(new Set(data.map(p => p.unit)));
-  
+  const { data } = useData();
+
+  const handleMetricChange = (metric: string) => {
+    onMetricChange(metric);
+  };
+
+  const handleFilterTypeChange = (type: string) => {
+    onFilterTypeChange(type);
+  };
+
+  const conditions = Array.from(new Set(data.map((p) => p.condition))).sort();
+  const units = Array.from(new Set(data.map((p) => p.unit))).sort();
+  const participants = data.map((p) => ({
+    id: p.id,
+    label: `${p.id} (${p.condition})`,
+  }));
+
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Filter Type */}
         <div className="space-y-2">
-          <Label htmlFor="patient-select">Select Participants</Label>
-          <MultipleSelect
-            id="patient-select"
-            placeholder="Select participants"
-            options={data.map(p => ({
-              value: p.id,
-              label: `${p.id.substring(0, 6)} - ${p.condition}`
-            }))}
-            selectedValues={selectedParticipantIds}
-            onChange={setSelectedParticipantIds}
-          />
+          <Label>Comparison Type</Label>
+          <Select value={filterType} onValueChange={handleFilterTypeChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select comparison type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="participant">Individual Participants</SelectItem>
+              <SelectItem value="condition">By Condition</SelectItem>
+              <SelectItem value="unit">By Clinical Unit</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        
+
+        {/* Metric Selection */}
         <div className="space-y-2">
-          <Label htmlFor="metric-select">Select Metric</Label>
-          <Select id="metric-select" value={selectedMetric} onValueChange={setSelectedMetric}>
+          <Label>Metric</Label>
+          <Select value={selectedMetric} onValueChange={handleMetricChange}>
             <SelectTrigger>
               <SelectValue placeholder="Select metric" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="vitals">Heart Rate</SelectItem>
-              <SelectItem value="bloodPressure">Blood Pressure</SelectItem>
-              <SelectItem value="oxygenation">Oxygen Saturation</SelectItem>
+              <SelectItem value="systolic">Blood Pressure (Systolic)</SelectItem>
+              <SelectItem value="diastolic">Blood Pressure (Diastolic)</SelectItem>
+              <SelectItem value="heartRate">Heart Rate</SelectItem>
               <SelectItem value="temperature">Temperature</SelectItem>
+              <SelectItem value="oxygenSaturation">Oxygen Saturation</SelectItem>
             </SelectContent>
           </Select>
         </div>
-        
+
+        {/* Comparison Options */}
         <div className="space-y-2">
-          <Label>Conditions to Compare</Label>
-          <MultipleSelect
-            placeholder="Select conditions"
-            options={allConditions.map(condition => ({
-              value: condition,
-              label: condition
-            }))}
-            selectedValues={selectedConditions}
-            onChange={setSelectedConditions}
-          />
+          <Label>Comparison Options</Label>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="compare-to-mean"
+              checked={compareToMean}
+              onCheckedChange={(checked) => {
+                if (typeof checked === 'boolean') {
+                  setCompareToMean(checked);
+                }
+              }}
+            />
+            <label
+              htmlFor="compare-to-mean"
+              className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Compare to Mean
+            </label>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="show-confidence-bands"
+              checked={showConfidenceBands}
+              onCheckedChange={(checked) => {
+                if (typeof checked === 'boolean') {
+                  setShowConfidenceBands(checked);
+                }
+              }}
+              disabled={!compareToMean}
+            />
+            <label
+              htmlFor="show-confidence-bands"
+              className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Show Confidence Bands
+            </label>
+          </div>
         </div>
-        
-        <div className="space-y-2">
-          <Label>Units to Compare</Label>
-          <MultipleSelect
-            placeholder="Select units"
-            options={allUnits.map(unit => ({
-              value: unit,
-              label: unit
-            }))}
-            selectedValues={selectedUnits}
-            onChange={setSelectedUnits}
-          />
-        </div>
+
+        {/* Time Range */}
+        {/* Will be implemented in future iterations */}
       </div>
-      
-      <div className="flex flex-wrap gap-6">
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="compare-condition" 
-            checked={compareToConditionMean}
-            onCheckedChange={(checked) => {
-              setCompareToConditionMean(checked === true);
-              // Uncheck unit mean if this is checked
-              if (checked) setCompareToUnitMean(false);
-            }}
-          />
-          <Label htmlFor="compare-condition">Compare to condition mean</Label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="compare-unit" 
-            checked={compareToUnitMean}
-            onCheckedChange={(checked) => {
-              setCompareToUnitMean(checked === true);
-              // Uncheck condition mean if this is checked
-              if (checked) setCompareToConditionMean(false);
-            }}
-          />
-          <Label htmlFor="compare-unit">Compare to unit mean</Label>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="confidence-bands" 
-            checked={showConfidenceBands}
-            onCheckedChange={(checked) => {
-              setShowConfidenceBands(checked === true);
-            }}
-            disabled={!compareToConditionMean && !compareToUnitMean}
-          />
-          <Label htmlFor="confidence-bands">Show 95% confidence bands</Label>
-        </div>
+
+      {/* Conditional UI based on filter type */}
+      <div className="space-y-2">
+        {filterType === 'participant' && (
+          <div className="space-y-2">
+            <Label>Select Participants</Label>
+            <MultipleSelect
+              options={participants.map((p) => ({
+                value: p.id,
+                label: `${p.id} (${p.condition})`,
+              }))}
+              selectedValues={selectedParticipantIds}
+              onChange={setSelectedParticipantIds}
+              placeholder="Select participants"
+            />
+          </div>
+        )}
+
+        {filterType === 'condition' && (
+          <div className="space-y-2">
+            <Label>Select Conditions</Label>
+            <MultipleSelect
+              options={conditions.map((condition) => ({
+                value: condition,
+                label: condition,
+              }))}
+              selectedValues={selectedConditions}
+              onChange={setSelectedConditions}
+              placeholder="Select conditions"
+            />
+          </div>
+        )}
+
+        {filterType === 'unit' && (
+          <div className="space-y-2">
+            <Label>Select Units</Label>
+            <MultipleSelect
+              options={units.map((unit) => ({ value: unit, label: unit }))}
+              selectedValues={selectedUnits}
+              onChange={setSelectedUnits}
+              placeholder="Select units"
+            />
+          </div>
+        )}
       </div>
     </div>
   );
