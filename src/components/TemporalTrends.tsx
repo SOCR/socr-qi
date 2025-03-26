@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTemporalData } from "@/hooks/useTemporalData";
 import FilterControls from "./FilterControls";
 import ChartLegend from "./ChartLegend";
-import { LineChart } from "@/components/ui/chart";
+import { LineChart } from "@/components/ui/charts";
 import { useChartCategories } from "@/hooks/useChartCategories";
 
 const TemporalTrends = () => {
@@ -149,6 +149,19 @@ const TemporalTrends = () => {
             }
           );
         });
+      } else if (filterType === 'participant') {
+        selectedParticipants.forEach((participantId, index) => {
+          items.push(
+            { 
+              label: `Patient ${participantId} Systolic BP`, 
+              color: `hsl(${(index * 30) % 360}, 70%, 50%)` 
+            },
+            { 
+              label: `Patient ${participantId} Diastolic BP`, 
+              color: `hsl(${((index * 30) + 15) % 360}, 70%, 50%)` 
+            }
+          );
+        });
       }
     }
     
@@ -187,6 +200,19 @@ const TemporalTrends = () => {
             },
             { 
               label: `${unit} Temp: ${unit} Average Temperature`, 
+              color: `hsl(${((index * 30) + 15) % 360}, 70%, 50%)` 
+            }
+          );
+        });
+      } else if (filterType === 'participant') {
+        selectedParticipants.forEach((participantId, index) => {
+          items.push(
+            { 
+              label: `Patient ${participantId} O₂ Saturation`, 
+              color: `hsl(${(index * 30) % 360}, 70%, 50%)` 
+            },
+            { 
+              label: `Patient ${participantId} Temperature`, 
               color: `hsl(${((index * 30) + 15) % 360}, 70%, 50%)` 
             }
           );

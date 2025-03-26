@@ -1,215 +1,151 @@
 
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import { useData } from "@/context/DataContext";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ScatterChart from "@/components/ScatterChart";
-import { calculateCorrelation, linearRegression } from "@/utils/analyticsUtils";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
 
-// Define the statistical metric options
-const MetricOptions = [
-  { id: "age", name: "Age" },
-  { id: "riskScore", name: "Risk Score" },
-  { id: "readmissionRisk", name: "Readmission Risk" },
-  { id: "lengthOfStay", name: "Length of Stay" },
-  { id: "heartRate", name: "Heart Rate (latest)" },
-  { id: "bloodPressure", name: "Blood Pressure (latest)" },
-  { id: "temperature", name: "Temperature (latest)" },
-  { id: "oxygenSaturation", name: "Oxygen Saturation (latest)" },
-];
+interface CorrelationAnalysisProps {
+  xVariable: string;
+  yVariable: string;
+  variableOptions: { value: string; label: string }[];
+}
 
-const CorrelationAnalysis = () => {
+const CorrelationAnalysis: React.FC<CorrelationAnalysisProps> = ({
+  xVariable,
+  yVariable,
+  variableOptions
+}) => {
   const { data } = useData();
-  const [xMetric, setXMetric] = useState("age");
-  const [yMetric, setYMetric] = useState("riskScore");
-
-  // Extract data points
-  const scatterData = useMemo(() => {
-    return data.map(participant => {
-      let xValue;
-      let yValue;
-      
-      // Extract X value
-      if (xMetric === "age" || xMetric === "riskScore" || xMetric === "readmissionRisk" || xMetric === "lengthOfStay") {
-        xValue = participant[xMetric as keyof typeof participant];
-      } else {
-        // Get latest vital sign measurement
-        if (participant.measurements.length > 0) {
-          const latest = participant.measurements[participant.measurements.length - 1];
-          if (xMetric === "heartRate") xValue = latest.heartRate;
-          else if (xMetric === "bloodPressure") xValue = latest.bloodPressureSystolic;
-          else if (xMetric === "temperature") xValue = latest.temperature;
-          else if (xMetric === "oxygenSaturation") xValue = latest.oxygenSaturation;
-        }
-      }
-      
-      // Extract Y value
-      if (yMetric === "age" || yMetric === "riskScore" || yMetric === "readmissionRisk" || yMetric === "lengthOfStay") {
-        yValue = participant[yMetric as keyof typeof participant];
-      } else {
-        // Get latest vital sign measurement
-        if (participant.measurements.length > 0) {
-          const latest = participant.measurements[participant.measurements.length - 1];
-          if (yMetric === "heartRate") yValue = latest.heartRate;
-          else if (yMetric === "bloodPressure") yValue = latest.bloodPressureSystolic;
-          else if (yMetric === "temperature") yValue = latest.temperature;
-          else if (yMetric === "oxygenSaturation") yValue = latest.oxygenSaturation;
-        }
-      }
-      
-      if (xValue !== undefined && yValue !== undefined) {
-        return {
-          id: participant.id,
-          x: xValue,
-          y: yValue,
-          outcome: participant.outcome,
-          condition: participant.condition,
-          unit: participant.unit,
-          gender: participant.gender
-        };
-      }
-      return null;
-    }).filter(point => point !== null) as any[];
-  }, [data, xMetric, yMetric]);
   
-  // Calculate correlation
+  // Get label for selected variables
+  const xLabel = variableOptions.find(o => o.value === xVariable)?.label || xVariable;
+  const yLabel = variableOptions.find(o => o.value === yVariable)?.label || yVariable;
+  
+  // Prepare data for scatter chart
+  const scatterData = useMemo(() => {
+    return data.map(p => ({
+      id: p.id,
+      x: p[xVariable as keyof typeof p],
+      y: p[yVariable as keyof typeof p],
+      outcome: p.outcome,
+      condition: p.condition,
+      gender: p.gender,
+      unit: p.unit
+    }));
+  }, [data, xVariable, yVariable]);
+  
+  // Calculate correlation coefficient
   const correlation = useMemo(() => {
-    if (scatterData.length < 3) return 0;
+    const validData = scatterData.filter(d => 
+      d.x !== undefined && d.y !== undefined && 
+      d.x !== null && d.y !== null
+    );
     
-    const xValues = scatterData.map(d => d.x);
-    const yValues = scatterData.map(d => d.y);
+    if (validData.length < 3) return null;
     
-    return calculateCorrelation(xValues, yValues);
+    const n = validData.length;
+    const sumX = validData.reduce((sum, d) => sum + d.x, 0);
+    const sumY = validData.reduce((sum, d) => sum + d.y, 0);
+    const sumXY = validData.reduce((sum, d) => sum + (d.x * d.y), 0);
+    const sumXX = validData.reduce((sum, d) => sum + (d.x * d.x), 0);
+    const sumYY = validData.reduce((sum, d) => sum + (d.y * d.y), 0);
+    
+    const numerator = n * sumXY - sumX * sumY;
+    const denominator = Math.sqrt((n * sumXX - sumX * sumX) * (n * sumYY - sumY * sumY));
+    
+    if (denominator === 0) return 0;
+    
+    return numerator / denominator;
   }, [scatterData]);
   
-  // Calculate regression line
-  const regressionPoints = useMemo(() => {
-    if (scatterData.length < 3) return [];
+  // Calculate linear regression
+  const regression = useMemo(() => {
+    const validData = scatterData.filter(d => 
+      d.x !== undefined && d.y !== undefined && 
+      d.x !== null && d.y !== null
+    );
     
-    const xValues = scatterData.map(d => d.x);
-    const yValues = scatterData.map(d => d.y);
+    if (validData.length < 2) return { slope: 0, intercept: 0 };
     
-    const { slope, intercept } = linearRegression(xValues, yValues);
+    const n = validData.length;
+    const sumX = validData.reduce((sum, d) => sum + d.x, 0);
+    const sumY = validData.reduce((sum, d) => sum + d.y, 0);
+    const sumXY = validData.reduce((sum, d) => sum + (d.x * d.y), 0);
+    const sumXX = validData.reduce((sum, d) => sum + (d.x * d.x), 0);
     
-    // Get min and max X values
+    const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    const intercept = (sumY - slope * sumX) / n;
+    
+    return { slope, intercept };
+  }, [scatterData]);
+  
+  // Generate regression line points
+  const regressionLineData = useMemo(() => {
+    if (scatterData.length < 2) return [];
+    
+    // Find min and max X values
+    const xValues = scatterData
+      .filter(d => d.x !== undefined && d.x !== null)
+      .map(d => d.x);
+    
+    if (xValues.length < 2) return [];
+    
     const minX = Math.min(...xValues);
     const maxX = Math.max(...xValues);
     
-    // Create points for line
+    // Create two points for the regression line
     return [
-      { x: minX, y: slope * minX + intercept },
-      { x: maxX, y: slope * maxX + intercept }
+      { x: minX, y: regression.slope * minX + regression.intercept },
+      { x: maxX, y: regression.slope * maxX + regression.intercept }
     ];
-  }, [scatterData]);
+  }, [scatterData, regression]);
   
-  // Get the name of the metric
-  const getMetricName = (id: string) => {
-    const metric = MetricOptions.find(m => m.id === id);
-    return metric ? metric.name : id;
-  };
-  
-  // Assess correlation strength
-  const getCorrelationStrength = () => {
-    const absCorr = Math.abs(correlation);
-    if (absCorr >= 0.7) return "Strong";
-    if (absCorr >= 0.5) return "Moderate";
-    if (absCorr >= 0.3) return "Weak";
-    return "Very weak";
-  };
-  
-  // Get badge color based on correlation strength
-  const getCorrelationColor = () => {
-    const absCorr = Math.abs(correlation);
-    if (absCorr >= 0.7) return "destructive";
-    if (absCorr >= 0.5) return "secondary";
-    if (absCorr >= 0.3) return "default";
-    return "outline";
-  };
-
   return (
     <Card>
       <CardHeader>
         <CardTitle>Correlation Analysis</CardTitle>
-        <CardDescription>
-          Analyze relationships between different parameters
-        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-4">
-          <div className="space-y-1 min-w-[150px] flex-1">
-            <label className="text-sm font-medium">X Axis</label>
-            <Select value={xMetric} onValueChange={setXMetric}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select metric" />
-              </SelectTrigger>
-              <SelectContent>
-                {MetricOptions.map(option => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      <CardContent>
+        <div className="grid grid-cols-1 gap-4">
+          <Alert variant="default" className="bg-blue-50 border-blue-200">
+            <InfoIcon className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              <strong>Correlation coefficient (r): {correlation !== null ? correlation.toFixed(3) : 'N/A'}</strong>
+              <br />
+              {correlation !== null && (
+                <span className="text-sm">
+                  {Math.abs(correlation) < 0.3 ? 'Weak correlation' :
+                   Math.abs(correlation) < 0.7 ? 'Moderate correlation' :
+                   'Strong correlation'} 
+                  {correlation > 0 ? ' (positive)' : ' (negative)'}
+                </span>
+              )}
+            </AlertDescription>
+          </Alert>
           
-          <div className="space-y-1 min-w-[150px] flex-1">
-            <label className="text-sm font-medium">Y Axis</label>
-            <Select value={yMetric} onValueChange={setYMetric}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select metric" />
-              </SelectTrigger>
-              <SelectContent>
-                {MetricOptions.map(option => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        
-        <div className="pt-2">
-          <div className="bg-muted p-3 rounded-md mb-3">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-medium">Correlation Analysis</h3>
-              <Badge variant={getCorrelationColor() as any}>
-                {getCorrelationStrength()}
-              </Badge>
-            </div>
-            <p className="text-sm">
-              <strong>Correlation coefficient:</strong> {correlation.toFixed(3)}
-            </p>
-            <p className="text-sm">
-              <strong>Direction:</strong> {correlation > 0 ? "Positive" : correlation < 0 ? "Negative" : "No correlation"}
-            </p>
-            <p className="text-sm mt-1">
-              {correlation > 0.7 || correlation < -0.7
-                ? `Strong ${correlation > 0 ? "positive" : "negative"} relationship between ${getMetricName(xMetric)} and ${getMetricName(yMetric)}.`
-                : correlation > 0.5 || correlation < -0.5
-                  ? `Moderate ${correlation > 0 ? "positive" : "negative"} relationship between ${getMetricName(xMetric)} and ${getMetricName(yMetric)}.`
-                  : `Weak or no significant relationship between ${getMetricName(xMetric)} and ${getMetricName(yMetric)}.`
-              }
-            </p>
-          </div>
-          
-          <div className="h-[350px]">
+          <div>
             <ScatterChart
               data={scatterData}
               xAxisKey="x"
               yAxisKey="y"
-              xAxisLabel={getMetricName(xMetric)}
-              yAxisLabel={getMetricName(yMetric)}
-              tooltipLabel="Participant"
+              xAxisLabel={xLabel}
+              yAxisLabel={yLabel}
+              tooltipLabel={`${xLabel} vs ${yLabel}`}
               height={350}
             />
+          </div>
+          
+          <div>
+            <p className="text-sm text-muted-foreground">
+              This scatter plot shows the relationship between {xLabel} and {yLabel}.
+              {correlation !== null && correlation !== 0 && (
+                <> The correlation coefficient (r = {correlation.toFixed(3)}) indicates 
+                a {Math.abs(correlation) < 0.3 ? 'weak' : Math.abs(correlation) < 0.7 ? 'moderate' : 'strong'} 
+                {correlation > 0 ? ' positive' : ' negative'} relationship.</>
+              )}
+            </p>
           </div>
         </div>
       </CardContent>

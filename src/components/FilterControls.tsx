@@ -44,7 +44,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
   showConfidenceBands,
   setShowConfidenceBands,
 }) => {
-  // Convert participants from {id, label} format to {value, label} format
+  // Convert participants from {id, label} format to {value, label} format for MultipleSelect
   const participantOptions = React.useMemo(() => {
     return participants.map(participant => ({
       value: participant.id,
