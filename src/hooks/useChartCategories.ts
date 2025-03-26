@@ -69,18 +69,19 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
 
       // Add aggregate average if requested
       if (showAggregateAverage) {
-        categories.push(metricInfo.avgPrefix);
+        const avgKey = metricInfo.avgPrefix;
+        categories.push(avgKey);
         
         legendItems.push({
-          label: `${metricInfo.avgPrefix}: Average ${metricInfo.label} (${metricInfo.unit})`,
+          label: `${avgKey}: Average ${metricInfo.label} (${metricInfo.unit})`,
           color: 'rgb(59, 130, 246)'  // Blue
         });
         
         if (showConfidenceBands) {
           confidenceBandCategories.push({
-            upper: `${metricInfo.avgPrefix}_upper`,
-            lower: `${metricInfo.avgPrefix}_lower`,
-            target: metricInfo.avgPrefix
+            upper: `${avgKey}_upper`,
+            lower: `${avgKey}_lower`,
+            target: avgKey
           });
         }
       }
@@ -89,12 +90,14 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
       if (showIndividualCourses) {
         if (filterType === 'condition' && selectedConditions.length > 0) {
           selectedConditions.forEach((condition, index) => {
+            if (!condition) return; // Skip empty conditions
+            
             const key = `${condition}_${metricInfo.avgPrefix}`;
             categories.push(key);
             
             legendItems.push({
               label: `${condition}: ${condition} Average ${metricInfo.label}`,
-              color: `hsl(${(index * 30) % 360}, 70%, 50%)`
+              color: `hsl(${(index * 30 + 60) % 360}, 70%, 50%)`
             });
             
             if (showConfidenceBands) {
@@ -108,12 +111,14 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
         } 
         else if (filterType === 'unit' && selectedUnits.length > 0) {
           selectedUnits.forEach((unit, index) => {
+            if (!unit) return; // Skip empty units
+            
             const key = `${unit}_${metricInfo.avgPrefix}`;
             categories.push(key);
             
             legendItems.push({
               label: `${unit}: ${unit} Average ${metricInfo.label}`,
-              color: `hsl(${(index * 30) % 360}, 70%, 50%)`
+              color: `hsl(${(index * 30 + 120) % 360}, 70%, 50%)`
             });
             
             if (showConfidenceBands) {
@@ -127,13 +132,18 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
         }
         else if (filterType === 'participant' && selectedParticipants.length > 0) {
           selectedParticipants.forEach((participantId, index) => {
-            const key = `participant_${participantId}_${metric.toLowerCase()}`;
+            if (!participantId) return; // Skip empty IDs
+            
+            // Use a consistent key format for participant data
+            const key = `participant_${participantId}_${metric}`;
             categories.push(key);
             
             legendItems.push({
               label: `Patient ${participantId}: ${metricInfo.label}`,
-              color: `hsl(${(index * 30) % 360}, 70%, 50%)`
+              color: `hsl(${(index * 30 + 180) % 360}, 70%, 50%)`
             });
+            
+            // No confidence bands for individual participants
           });
         }
       }
@@ -141,7 +151,11 @@ export const useChartCategories = (options: ChartCategoriesOptions) => {
       console.error("Error in useChartCategories:", error);
     }
 
-    return { categories, confidenceBandCategories, legendItems };
+    return { 
+      categories, 
+      confidenceBandCategories, 
+      legendItems 
+    };
   }, [
     metric,
     showAggregateAverage,

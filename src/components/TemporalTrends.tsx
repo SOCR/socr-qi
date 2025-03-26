@@ -55,7 +55,7 @@ const TemporalTrends = () => {
         description: "There was a problem filtering the data. Please try again.",
         variant: "destructive"
       });
-      return data;
+      return [];
     }
   };
   
@@ -64,9 +64,9 @@ const TemporalTrends = () => {
     // Add a small delay to allow the UI to update
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
-  }, [filterType, selectedConditions, selectedUnits, selectedParticipants]);
+  }, [filterType, selectedConditions, selectedUnits, selectedParticipants, showConfidenceBands]);
   
   const filteredData = getFilteredData();
   const temporalData = useTemporalData(filteredData);
@@ -158,10 +158,6 @@ const TemporalTrends = () => {
   // Generate legend items for combined charts (BP, Oxygen/Temp)
   const getBpLegendItems = () => {
     return [
-      ...(showAggregateAverage ? [
-        { label: "avgBpSystolic: Average Systolic Blood Pressure", color: "rgb(59, 130, 246)" },
-        { label: "avgBpDiastolic: Average Diastolic Blood Pressure", color: "rgb(34, 197, 94)" }
-      ] : []),
       ...bpCategories.legendItems,
       ...bpDiastolicCategories.legendItems
     ];
@@ -169,13 +165,23 @@ const TemporalTrends = () => {
   
   const getOxygenTempLegendItems = () => {
     return [
-      ...(showAggregateAverage ? [
-        { label: "avgOxygenSaturation: Average Oxygen Saturation (%)", color: "rgb(59, 130, 246)" },
-        { label: "avgTemperature: Average Temperature (°C)", color: "rgb(34, 197, 94)" }
-      ] : []),
       ...oxygenCategories.legendItems,
       ...temperatureCategories.legendItems
     ];
+  };
+
+  // Validate confidence band categories
+  const validateConfidenceBands = (confidenceBands) => {
+    if (!Array.isArray(confidenceBands)) {
+      return [];
+    }
+    
+    return confidenceBands.filter(band => 
+      band && typeof band === 'object' && 
+      typeof band.upper === 'string' && 
+      typeof band.lower === 'string' && 
+      typeof band.target === 'string'
+    );
   };
 
   return (
@@ -239,7 +245,7 @@ const TemporalTrends = () => {
                     valueFormatter={(value) => `${Math.round(value)}`}
                     height={250}
                     showConfidenceBands={showConfidenceBands}
-                    confidenceBandCategories={vitalSignsCategories.confidenceBandCategories}
+                    confidenceBandCategories={validateConfidenceBands(vitalSignsCategories.confidenceBandCategories)}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-[250px] bg-gray-50 rounded-md">
@@ -268,8 +274,8 @@ const TemporalTrends = () => {
                     height={250}
                     showConfidenceBands={showConfidenceBands}
                     confidenceBandCategories={[
-                      ...bpCategories.confidenceBandCategories,
-                      ...bpDiastolicCategories.confidenceBandCategories
+                      ...validateConfidenceBands(bpCategories.confidenceBandCategories),
+                      ...validateConfidenceBands(bpDiastolicCategories.confidenceBandCategories)
                     ]}
                   />
                 ) : (
@@ -299,8 +305,8 @@ const TemporalTrends = () => {
                     height={250}
                     showConfidenceBands={showConfidenceBands}
                     confidenceBandCategories={[
-                      ...oxygenCategories.confidenceBandCategories,
-                      ...temperatureCategories.confidenceBandCategories
+                      ...validateConfidenceBands(oxygenCategories.confidenceBandCategories),
+                      ...validateConfidenceBands(temperatureCategories.confidenceBandCategories)
                     ]}
                   />
                 ) : (

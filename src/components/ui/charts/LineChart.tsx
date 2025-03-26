@@ -59,12 +59,24 @@ export const LineChart = ({
     return `hsl(${(idx * 30) % 360}, 70%, 50%)`;
   };
 
+  // Ensure categories is an array
+  const validCategories = Array.isArray(categories) ? categories : [];
+  
   // Make sure confidenceBandCategories is an array and contains valid objects
   const validConfidenceBands = Array.isArray(confidenceBandCategories) 
     ? confidenceBandCategories.filter(band => 
         band && typeof band === 'object' && 'upper' in band && 'lower' in band && 'target' in band
       )
     : [];
+
+  // Check if the data contains all the necessary fields for confidence bands
+  const validatedConfidenceBands = validConfidenceBands.filter(band => {
+    return data.some(item => 
+      item[band.upper] !== undefined && 
+      item[band.lower] !== undefined && 
+      item[band.target] !== undefined
+    );
+  });
 
   return (
     <ChartContainer height={height}>
@@ -100,14 +112,15 @@ export const LineChart = ({
           />
         )}
 
-        {/* Render confidence bands if enabled */}
-        {showConfidenceBands && validConfidenceBands.map((category, idx) => {
-          const targetIndex = categories.findIndex(cat => cat === category.target);
+        {/* Render confidence bands if enabled and valid */}
+        {showConfidenceBands && validatedConfidenceBands.map((category, idx) => {
+          // Find the target category in the categories array
+          const targetIndex = validCategories.findIndex(cat => cat === category.target);
           const color = getColor(targetIndex !== -1 ? targetIndex : idx);
           
           return (
             <Area
-              key={`band-${idx}-${category.upper}`}
+              key={`conf-area-${idx}-${category.target}`}
               type="monotone"
               dataKey={category.upper}
               stroke="none"
@@ -120,13 +133,13 @@ export const LineChart = ({
           );
         })}
 
-        {showConfidenceBands && validConfidenceBands.map((category, idx) => {
-          const targetIndex = categories.findIndex(cat => cat === category.target);
+        {showConfidenceBands && validatedConfidenceBands.map((category, idx) => {
+          const targetIndex = validCategories.findIndex(cat => cat === category.target);
           const color = getColor(targetIndex !== -1 ? targetIndex : idx);
           
           return (
             <Area
-              key={`band-${idx}-${category.lower}`}
+              key={`conf-lower-${idx}-${category.target}`}
               type="monotone"
               dataKey={category.lower}
               stroke="none"
@@ -140,7 +153,7 @@ export const LineChart = ({
         })}
 
         {/* Render the actual lines */}
-        {categories.map((category, idx) => (
+        {validCategories.map((category, idx) => (
           <Line
             key={`line-${category}`}
             type="monotone"
