@@ -28,6 +28,7 @@ const TemporalTrends = () => {
   const [showConfidenceBands, setShowConfidenceBands] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>("vitals");
+  const [error, setError] = useState<string | null>(null);
   
   // Get unique conditions, units, and participants
   const conditions = Array.from(new Set(data.map(p => p.condition))).sort();
@@ -37,6 +38,7 @@ const TemporalTrends = () => {
   // Filter data based on selection
   const getFilteredData = () => {
     try {
+      setError(null);
       if (filterType === 'condition' && selectedConditions.length > 0) {
         return data.filter(p => selectedConditions.includes(p.condition));
       } else if (filterType === 'unit' && selectedUnits.length > 0) {
@@ -47,6 +49,7 @@ const TemporalTrends = () => {
       return data;
     } catch (error) {
       console.error("Error filtering data:", error);
+      setError("Error filtering data. Please try different selections.");
       toast({
         title: "Error filtering data",
         description: "There was a problem filtering the data. Please try again.",
@@ -246,6 +249,23 @@ const TemporalTrends = () => {
     return items;
   };
 
+  // Check if we have any chart categories for the current selection
+  const hasCategories = (tab: string) => {
+    try {
+      if (tab === "vitals") {
+        return vitalSignsCategories.categories.length > 0;
+      } else if (tab === "bloodPressure") {
+        return bpCategories.categories.length > 0 || bpDiastolicCategories.categories.length > 0;
+      } else if (tab === "oxygen") {
+        return oxygenCategories.categories.length > 0 || temperatureCategories.categories.length > 0;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking categories:", error);
+      return false;
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -281,6 +301,10 @@ const TemporalTrends = () => {
           <div className="flex items-center justify-center h-[300px]">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
           </div>
+        ) : error ? (
+          <div className="flex items-center justify-center h-[300px] bg-red-50 rounded-md">
+            <p className="text-red-500">{error}</p>
+          </div>
         ) : temporalData.length === 0 ? (
           <div className="flex items-center justify-center h-[300px] bg-gray-50 rounded-md">
             <p className="text-gray-500">No data available for the selected filters</p>
@@ -295,15 +319,21 @@ const TemporalTrends = () => {
               </TabsList>
               
               <TabsContent value="vitals">
-                <LineChart
-                  data={temporalData}
-                  index="month"
-                  categories={vitalSignsCategories.categories}
-                  valueFormatter={(value) => `${Math.round(value)}`}
-                  height={250}
-                  showConfidenceBands={showConfidenceBands}
-                  confidenceBandCategories={vitalSignsCategories.confidenceBandCategories}
-                />
+                {hasCategories("vitals") ? (
+                  <LineChart
+                    data={temporalData}
+                    index="month"
+                    categories={vitalSignsCategories.categories}
+                    valueFormatter={(value) => `${Math.round(value)}`}
+                    height={250}
+                    showConfidenceBands={showConfidenceBands}
+                    confidenceBandCategories={vitalSignsCategories.confidenceBandCategories}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-[250px] bg-gray-50 rounded-md">
+                    <p className="text-gray-500">No vital signs data available for the selected filters</p>
+                  </div>
+                )}
                 <ChartLegend
                   items={vitalSignsCategories.legendItems}
                   filterType={filterType}
@@ -314,21 +344,27 @@ const TemporalTrends = () => {
               </TabsContent>
               
               <TabsContent value="bloodPressure">
-                <LineChart
-                  data={temporalData}
-                  index="month"
-                  categories={[
-                    ...bpCategories.categories,
-                    ...bpDiastolicCategories.categories
-                  ]}
-                  valueFormatter={(value) => `${Math.round(value)}`}
-                  height={250}
-                  showConfidenceBands={showConfidenceBands}
-                  confidenceBandCategories={[
-                    ...bpCategories.confidenceBandCategories,
-                    ...bpDiastolicCategories.confidenceBandCategories
-                  ]}
-                />
+                {hasCategories("bloodPressure") ? (
+                  <LineChart
+                    data={temporalData}
+                    index="month"
+                    categories={[
+                      ...bpCategories.categories,
+                      ...bpDiastolicCategories.categories
+                    ]}
+                    valueFormatter={(value) => `${Math.round(value)}`}
+                    height={250}
+                    showConfidenceBands={showConfidenceBands}
+                    confidenceBandCategories={[
+                      ...bpCategories.confidenceBandCategories,
+                      ...bpDiastolicCategories.confidenceBandCategories
+                    ]}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-[250px] bg-gray-50 rounded-md">
+                    <p className="text-gray-500">No blood pressure data available for the selected filters</p>
+                  </div>
+                )}
                 <ChartLegend
                   items={getBpLegendItems()}
                   filterType={filterType}
@@ -339,21 +375,27 @@ const TemporalTrends = () => {
               </TabsContent>
               
               <TabsContent value="oxygen">
-                <LineChart
-                  data={temporalData}
-                  index="month"
-                  categories={[
-                    ...oxygenCategories.categories,
-                    ...temperatureCategories.categories
-                  ]}
-                  valueFormatter={(value) => `${value.toFixed(1)}`}
-                  height={250}
-                  showConfidenceBands={showConfidenceBands}
-                  confidenceBandCategories={[
-                    ...oxygenCategories.confidenceBandCategories,
-                    ...temperatureCategories.confidenceBandCategories
-                  ]}
-                />
+                {hasCategories("oxygen") ? (
+                  <LineChart
+                    data={temporalData}
+                    index="month"
+                    categories={[
+                      ...oxygenCategories.categories,
+                      ...temperatureCategories.categories
+                    ]}
+                    valueFormatter={(value) => `${value.toFixed(1)}`}
+                    height={250}
+                    showConfidenceBands={showConfidenceBands}
+                    confidenceBandCategories={[
+                      ...oxygenCategories.confidenceBandCategories,
+                      ...temperatureCategories.confidenceBandCategories
+                    ]}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-[250px] bg-gray-50 rounded-md">
+                    <p className="text-gray-500">No oxygen/temperature data available for the selected filters</p>
+                  </div>
+                )}
                 <ChartLegend
                   items={getOxygenTempLegendItems()}
                   filterType={filterType}

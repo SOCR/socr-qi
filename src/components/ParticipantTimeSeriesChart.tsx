@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useData, Participant } from "@/context/DataContext";
-import { LineChart } from "@/components/ui/chart";
+import { LineChart } from "@/components/ui/charts";
 import MultiParticipantChartControls from "./MultiParticipantChartControls";
 import { useParticipantTimeSeriesData } from "@/hooks/useParticipantTimeSeriesData";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -96,7 +96,13 @@ const ParticipantTimeSeriesChart = () => {
     if (!showConfidenceBands) return [];
     
     const baseCat = metricMapping[selectedMetric].dataKey;
-    return [`${baseCat}_upper`, `${baseCat}_lower`];
+    
+    // Fix: Return array of ConfidenceBandCategory objects instead of strings
+    return [{
+      upper: `${baseCat}_upper`,
+      lower: `${baseCat}_lower`,
+      target: baseCat
+    }];
   };
 
   // Get participant details for legend

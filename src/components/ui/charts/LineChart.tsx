@@ -13,7 +13,7 @@ import {
 } from "recharts";
 import ChartContainer from "./ChartContainer";
 
-interface ConfidenceBandCategory {
+export interface ConfidenceBandCategory {
   upper: string;
   lower: string;
   target: string;

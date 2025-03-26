@@ -1,9 +1,16 @@
 
-import React, { useMemo } from "react";
+import React from "react";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import MultipleSelect from "@/components/ui/multiple-select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface FilterControlsProps {
   filterType: string;
@@ -21,8 +28,8 @@ interface FilterControlsProps {
   setShowAggregateAverage: (show: boolean) => void;
   showIndividualCourses: boolean;
   setShowIndividualCourses: (show: boolean) => void;
-  showConfidenceBands: boolean;
-  setShowConfidenceBands: (show: boolean) => void;
+  showConfidenceBands?: boolean;
+  setShowConfidenceBands?: (show: boolean) => void;
 }
 
 const FilterControls: React.FC<FilterControlsProps> = ({
@@ -41,132 +48,159 @@ const FilterControls: React.FC<FilterControlsProps> = ({
   setShowAggregateAverage,
   showIndividualCourses,
   setShowIndividualCourses,
-  showConfidenceBands,
-  setShowConfidenceBands,
+  showConfidenceBands = false,
+  setShowConfidenceBands
 }) => {
-  // Convert participants from {id, label} format to {value, label} format for MultipleSelect
-  const participantOptions = useMemo(() => {
-    return participants.map(participant => ({
-      value: participant.id,
-      label: participant.label
-    }));
-  }, [participants]);
+  // Toggle condition selection
+  const toggleCondition = (condition: string) => {
+    setSelectedConditions(
+      selectedConditions.includes(condition)
+        ? selectedConditions.filter(c => c !== condition)
+        : [...selectedConditions, condition]
+    );
+  };
+  
+  // Toggle unit selection
+  const toggleUnit = (unit: string) => {
+    setSelectedUnits(
+      selectedUnits.includes(unit)
+        ? selectedUnits.filter(u => u !== unit)
+        : [...selectedUnits, unit]
+    );
+  };
+  
+  // Toggle participant selection
+  const toggleParticipant = (participant: string) => {
+    setSelectedParticipants(
+      selectedParticipants.includes(participant)
+        ? selectedParticipants.filter(p => p !== participant)
+        : [...selectedParticipants, participant]
+    );
+  };
+  
+  // Sanitize participant ids to ensure they're valid strings
+  const sanitizedParticipants = participants.map(p => ({
+    value: p.id.toString(),
+    label: p.label
+  }));
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <Label>Filter Data</Label>
-        <Select value={filterType} onValueChange={onFilterTypeChange}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select filter type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Participants</SelectItem>
-            <SelectItem value="condition">By Condition</SelectItem>
-            <SelectItem value="unit">By Clinical Unit</SelectItem>
-            <SelectItem value="participant">By Participant</SelectItem>
-          </SelectContent>
-        </Select>
+      <div>
+        <Label className="text-base font-medium">Filter Data By</Label>
+        <RadioGroup
+          value={filterType}
+          onValueChange={onFilterTypeChange}
+          className="flex flex-col space-y-1 mt-2"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="all" id="all" />
+            <Label htmlFor="all">All Data</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="condition" id="condition" />
+            <Label htmlFor="condition">Conditions</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="unit" id="unit" />
+            <Label htmlFor="unit">Units</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="participant" id="participant" />
+            <Label htmlFor="participant">Participants</Label>
+          </div>
+        </RadioGroup>
       </div>
       
       {filterType === 'condition' && (
-        <div className="space-y-2">
-          <Label>Select Conditions</Label>
-          <MultipleSelect
-            options={conditions.map(condition => ({ value: condition, label: condition }))}
-            selectedValues={selectedConditions}
-            onChange={setSelectedConditions}
-            placeholder="Select conditions"
-          />
+        <div>
+          <Label className="text-base font-medium">Select Conditions</Label>
+          <ScrollArea className="h-[100px] border rounded-md p-2 mt-1">
+            <div className="space-y-1">
+              {conditions.map(condition => (
+                <div key={condition} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`condition-${condition}`}
+                    checked={selectedConditions.includes(condition)}
+                    onCheckedChange={() => toggleCondition(condition)}
+                  />
+                  <Label htmlFor={`condition-${condition}`}>{condition}</Label>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
       )}
       
       {filterType === 'unit' && (
-        <div className="space-y-2">
-          <Label>Select Units</Label>
-          <MultipleSelect
-            options={units.map(unit => ({ value: unit, label: unit }))}
-            selectedValues={selectedUnits}
-            onChange={setSelectedUnits}
-            placeholder="Select units"
-          />
+        <div>
+          <Label className="text-base font-medium">Select Units</Label>
+          <ScrollArea className="h-[100px] border rounded-md p-2 mt-1">
+            <div className="space-y-1">
+              {units.map(unit => (
+                <div key={unit} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`unit-${unit}`}
+                    checked={selectedUnits.includes(unit)}
+                    onCheckedChange={() => toggleUnit(unit)}
+                  />
+                  <Label htmlFor={`unit-${unit}`}>{unit}</Label>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
       )}
       
       {filterType === 'participant' && (
-        <div className="space-y-2">
-          <Label>Select Participants</Label>
-          <MultipleSelect
-            options={participantOptions}
-            selectedValues={selectedParticipants}
-            onChange={setSelectedParticipants}
-            placeholder="Select participants"
-          />
+        <div>
+          <Label className="text-base font-medium">Select Participants</Label>
+          <ScrollArea className="h-[100px] border rounded-md p-2 mt-1">
+            <div className="space-y-1">
+              {sanitizedParticipants.map(participant => (
+                <div key={participant.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`participant-${participant.value}`}
+                    checked={selectedParticipants.includes(participant.value)}
+                    onCheckedChange={() => toggleParticipant(participant.value)}
+                  />
+                  <Label htmlFor={`participant-${participant.value}`}>{participant.label}</Label>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
       )}
       
       <div className="space-y-2">
-        <Label>Display Options</Label>
-        <div className="flex flex-col space-y-2">
+        <Label className="text-base font-medium">Display Options</Label>
+        <div className="space-y-1">
           <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="show-aggregate" 
+            <Checkbox
+              id="show-average"
               checked={showAggregateAverage}
-              onCheckedChange={(checked) => {
-                if (typeof checked === 'boolean') {
-                  setShowAggregateAverage(checked);
-                  
-                  // If turning off aggregate average, also turn off confidence bands
-                  if (!checked) {
-                    setShowConfidenceBands(false);
-                  }
-                }
-              }}
+              onCheckedChange={() => setShowAggregateAverage(!showAggregateAverage)}
             />
-            <label
-              htmlFor="show-aggregate"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Show Aggregate Average
-            </label>
+            <Label htmlFor="show-average">Show Aggregate Average</Label>
           </div>
-          
           <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="show-individual" 
+            <Checkbox
+              id="show-individual"
               checked={showIndividualCourses}
-              onCheckedChange={(checked) => {
-                if (typeof checked === 'boolean') {
-                  setShowIndividualCourses(checked);
-                }
-              }}
+              onCheckedChange={() => setShowIndividualCourses(!showIndividualCourses)}
             />
-            <label
-              htmlFor="show-individual"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Show Individual Time Courses
-            </label>
+            <Label htmlFor="show-individual">Show Individual Time Courses</Label>
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="show-confidence" 
-              checked={showConfidenceBands}
-              onCheckedChange={(checked) => {
-                if (typeof checked === 'boolean') {
-                  setShowConfidenceBands(checked);
-                }
-              }}
-              disabled={!showAggregateAverage}
-            />
-            <label
-              htmlFor="show-confidence"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Show 95% Confidence Bands
-            </label>
-          </div>
+          {setShowConfidenceBands && (
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="show-confidence"
+                checked={showConfidenceBands}
+                onCheckedChange={() => setShowConfidenceBands(!showConfidenceBands)}
+              />
+              <Label htmlFor="show-confidence">Show Confidence Bands</Label>
+            </div>
+          )}
         </div>
       </div>
     </div>
