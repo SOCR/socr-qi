@@ -8,6 +8,8 @@ interface TimeSeriesOptions {
   compareToUnitMean?: boolean;
   showConfidenceBands?: boolean;
   confidenceLevel?: number; // 0.95 for 95% confidence
+  selectedConditions?: string[]; // Added for multiple condition selection
+  selectedUnits?: string[]; // Added for multiple unit selection
 }
 
 export const useParticipantTimeSeriesData = (
@@ -20,7 +22,9 @@ export const useParticipantTimeSeriesData = (
       compareToConditionMean = false,
       compareToUnitMean = false,
       showConfidenceBands = false,
-      confidenceLevel = 0.95
+      confidenceLevel = 0.95,
+      selectedConditions = [],
+      selectedUnits = []
     } = options;
     
     if (!selectedParticipantIds.length) return [];
@@ -97,14 +101,18 @@ export const useParticipantTimeSeriesData = (
     
     // Add comparison data if requested
     if ((compareToConditionMean || compareToUnitMean) && selectedParticipants.length > 0) {
-      // For condition mean, we need to consider all conditions of selected participants
-      // For unit mean, we need to consider all units of selected participants
+      // For condition mean, we need to consider all conditions of selected participants or the specifically selected conditions
+      // For unit mean, we need to consider all units of selected participants or the specifically selected units
       const conditionsToCompare = compareToConditionMean 
-        ? [...new Set(selectedParticipants.map(p => p.condition))]
+        ? (selectedConditions.length > 0 
+            ? selectedConditions 
+            : [...new Set(selectedParticipants.map(p => p.condition))])
         : [];
         
       const unitsToCompare = compareToUnitMean
-        ? [...new Set(selectedParticipants.map(p => p.unit))]
+        ? (selectedUnits.length > 0 
+            ? selectedUnits 
+            : [...new Set(selectedParticipants.map(p => p.unit))])
         : [];
         
       // Get all participants that match the conditions or units (excluding selected participants)

@@ -1,333 +1,500 @@
-import React, { useState } from "react";
-import { useData } from "@/context/DataContext";
+
+import React, { useState, useMemo } from "react";
+import { useData, Participant } from "@/context/DataContext";
 import { 
   Card, 
   CardContent, 
   CardDescription, 
   CardHeader, 
-  CardTitle
+  CardTitle 
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, ScatterChart } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { 
+  ScatterChart, 
+  BarChart, 
+  LineChart, 
+  PieChart 
+} from "@/components/ui/chart";
+import { calculateCorrelation, linearRegression } from "@/utils/analyticsUtils";
+
+// Sample risk factors to analyze
+const riskFactors = [
+  { id: "age", name: "Age", unit: "years" },
+  { id: "heartRate", name: "Heart Rate", unit: "bpm" },
+  { id: "systolic", name: "Systolic BP", unit: "mmHg" },
+  { id: "diastolic", name: "Diastolic BP", unit: "mmHg" },
+  { id: "temperature", name: "Temperature", unit: "°C" },
+  { id: "oxygenSaturation", name: "O₂ Saturation", unit: "%" },
+  { id: "lengthOfStay", name: "Length of Stay", unit: "days" },
+];
 
 const RiskFactorAnalysis = () => {
   const { data } = useData();
-  const [outcomeFilter, setOutcomeFilter] = useState<string>("all");
+  const [primaryFactor, setPrimaryFactor] = useState("age");
+  const [secondaryFactor, setSecondaryFactor] = useState("lengthOfStay");
+  const [outcomeFactor, setOutcomeFactor] = useState("riskScore");
+  const [analysisType, setAnalysisType] = useState<"correlation" | "distribution" | "trends">("correlation");
   
-  // Get all unique outcomes
-  const outcomes = Array.from(new Set(data.map(p => p.outcome)));
-  
-  // Filter data based on selected outcome
-  const filteredData = outcomeFilter === "all" 
-    ? data 
-    : data.filter(p => p.outcome === outcomeFilter);
-  
-  // Analyze risk factors by age group
-  const ageGroups = ["18-30", "31-45", "46-60", "61-75", "76+"];
-  const ageRiskData = ageGroups.map(group => {
-    let participants;
-    if (group === "18-30") {
-      participants = filteredData.filter(p => p.age >= 18 && p.age <= 30);
-    } else if (group === "31-45") {
-      participants = filteredData.filter(p => p.age >= 31 && p.age <= 45);
-    } else if (group === "46-60") {
-      participants = filteredData.filter(p => p.age >= 46 && p.age <= 60);
-    } else if (group === "61-75") {
-      participants = filteredData.filter(p => p.age >= 61 && p.age <= 75);
-    } else {
-      participants = filteredData.filter(p => p.age >= 76);
-    }
-    
-    const avgRisk = participants.length > 0
-      ? participants.reduce((sum, p) => sum + p.riskScore, 0) / participants.length
-      : 0;
+  const getFormattedRiskData = useMemo(() => {
+    // Extract the primary factor data for each participant
+    return data.map(participant => {
+      let primaryValue: number | null = null;
+      let secondaryValue: number | null = null;
+      let outcomeValue: number | null = null;
       
-    const avgReadmission = participants.length > 0
-      ? participants.reduce((sum, p) => sum + p.readmissionRisk, 0) / participants.length
-      : 0;
+      // Get primary factor data
+      if (primaryFactor === "age") {
+        primaryValue = participant.age;
+      } else if (primaryFactor === "lengthOfStay") {
+        primaryValue = participant.lengthOfStay;
+      } else if (primaryFactor === "riskScore") {
+        primaryValue = participant.riskScore;
+      } else {
+        // For vital signs, get the most recent measurement
+        if (participant.measurements.length > 0) {
+          const latestMeasurement = participant.measurements[participant.measurements.length - 1];
+          if (primaryFactor === "heartRate") {
+            primaryValue = latestMeasurement.heartRate;
+          } else if (primaryFactor === "systolic") {
+            primaryValue = latestMeasurement.bloodPressureSystolic;
+          } else if (primaryFactor === "diastolic") {
+            primaryValue = latestMeasurement.bloodPressureDiastolic;
+          } else if (primaryFactor === "temperature") {
+            primaryValue = latestMeasurement.temperature;
+          } else if (primaryFactor === "oxygenSaturation") {
+            primaryValue = latestMeasurement.oxygenSaturation;
+          }
+        }
+      }
       
-    return {
-      group,
-      avgRisk: parseFloat(avgRisk.toFixed(1)),
-      avgReadmission: parseFloat(avgReadmission.toFixed(1)),
-      count: participants.length
-    };
-  });
+      // Get secondary factor data
+      if (secondaryFactor === "age") {
+        secondaryValue = participant.age;
+      } else if (secondaryFactor === "lengthOfStay") {
+        secondaryValue = participant.lengthOfStay;
+      } else if (secondaryFactor === "riskScore") {
+        secondaryValue = participant.riskScore;
+      } else {
+        // For vital signs, get the most recent measurement
+        if (participant.measurements.length > 0) {
+          const latestMeasurement = participant.measurements[participant.measurements.length - 1];
+          if (secondaryFactor === "heartRate") {
+            secondaryValue = latestMeasurement.heartRate;
+          } else if (secondaryFactor === "systolic") {
+            secondaryValue = latestMeasurement.bloodPressureSystolic;
+          } else if (secondaryFactor === "diastolic") {
+            secondaryValue = latestMeasurement.bloodPressureDiastolic;
+          } else if (secondaryFactor === "temperature") {
+            secondaryValue = latestMeasurement.temperature;
+          } else if (secondaryFactor === "oxygenSaturation") {
+            secondaryValue = latestMeasurement.oxygenSaturation;
+          }
+        }
+      }
+      
+      // Get outcome factor data
+      if (outcomeFactor === "age") {
+        outcomeValue = participant.age;
+      } else if (outcomeFactor === "lengthOfStay") {
+        outcomeValue = participant.lengthOfStay;
+      } else if (outcomeFactor === "riskScore") {
+        outcomeValue = participant.riskScore;
+      } else if (outcomeFactor === "readmissionRisk") {
+        outcomeValue = participant.readmissionRisk;
+      } else {
+        // For vital signs, get the most recent measurement
+        if (participant.measurements.length > 0) {
+          const latestMeasurement = participant.measurements[participant.measurements.length - 1];
+          if (outcomeFactor === "heartRate") {
+            outcomeValue = latestMeasurement.heartRate;
+          } else if (outcomeFactor === "systolic") {
+            outcomeValue = latestMeasurement.bloodPressureSystolic;
+          } else if (outcomeFactor === "diastolic") {
+            outcomeValue = latestMeasurement.bloodPressureDiastolic;
+          } else if (outcomeFactor === "temperature") {
+            outcomeValue = latestMeasurement.temperature;
+          } else if (outcomeFactor === "oxygenSaturation") {
+            outcomeValue = latestMeasurement.oxygenSaturation;
+          }
+        }
+      }
+      
+      // Only return records with valid data for both factors
+      if (primaryValue !== null && secondaryValue !== null && outcomeValue !== null) {
+        return {
+          id: participant.id,
+          primary: primaryValue,
+          secondary: secondaryValue,
+          outcome: outcomeValue,
+          condition: participant.condition,
+          unit: participant.unit,
+          gender: participant.gender,
+          outcomeCategory: participant.outcome
+        };
+      }
+      return null;
+    }).filter(item => item !== null) as {
+      id: string;
+      primary: number;
+      secondary: number;
+      outcome: number;
+      condition: string;
+      unit: string;
+      gender: string;
+      outcomeCategory: string;
+    }[];
+  }, [data, primaryFactor, secondaryFactor, outcomeFactor]);
   
-  // Analyze risk factors by condition
-  const conditions = Array.from(new Set(data.map(p => p.condition)));
-  const conditionRiskData = conditions.map(condition => {
-    const participants = filteredData.filter(p => p.condition === condition);
-    
-    const avgRisk = participants.length > 0
-      ? participants.reduce((sum, p) => sum + p.riskScore, 0) / participants.length
-      : 0;
-      
-    const avgReadmission = participants.length > 0
-      ? participants.reduce((sum, p) => sum + p.readmissionRisk, 0) / participants.length
-      : 0;
-      
-    const avgLOS = participants.length > 0
-      ? participants.reduce((sum, p) => sum + p.lengthOfStay, 0) / participants.length
-      : 0;
-      
-    return {
-      condition,
-      avgRisk: parseFloat(avgRisk.toFixed(1)),
-      avgReadmission: parseFloat(avgReadmission.toFixed(1)),
-      avgLOS: parseFloat(avgLOS.toFixed(1)),
-      count: participants.length
-    };
-  }).sort((a, b) => b.avgRisk - a.avgRisk);
+  // Calculate correlation between the factors
+  const correlationResult = useMemo(() => {
+    if (getFormattedRiskData.length < 3) return 0;
+    const xValues = getFormattedRiskData.map(d => d.primary);
+    const yValues = getFormattedRiskData.map(d => d.secondary);
+    return calculateCorrelation(xValues, yValues);
+  }, [getFormattedRiskData]);
   
-  // Analyze correlation between risk score and length of stay
-  const correlationData = filteredData.map(p => ({
-    id: p.id,
-    riskScore: p.riskScore,
-    lengthOfStay: p.lengthOfStay,
-    outcome: p.outcome,
-    condition: p.condition
-  }));
+  // Calculate linear regression between the factors
+  const regressionResult = useMemo(() => {
+    if (getFormattedRiskData.length < 3) return { slope: 0, intercept: 0 };
+    const xValues = getFormattedRiskData.map(d => d.primary);
+    const yValues = getFormattedRiskData.map(d => d.outcome);
+    return linearRegression(xValues, yValues);
+  }, [getFormattedRiskData]);
   
-  // Calculate correlation coefficient between risk score and length of stay
-  const calculateCorrelation = (data: { riskScore: number; lengthOfStay: number }[]) => {
-    const n = data.length;
-    if (n === 0) return 0;
+  // Prepare scatter plot data
+  const scatterData = useMemo(() => {
+    return getFormattedRiskData.map((item) => ({
+      x: item.primary,
+      y: item.secondary,
+      id: item.id,
+      condition: item.condition,
+      unit: item.unit,
+      gender: item.gender,
+      outcomeCategory: item.outcomeCategory
+    }));
+  }, [getFormattedRiskData]);
+  
+  // Prepare distribution data
+  const distributionData = useMemo(() => {
+    // Group by condition
+    const byCondition = getFormattedRiskData.reduce((acc, item) => {
+      if (!acc[item.condition]) {
+        acc[item.condition] = {
+          condition: item.condition,
+          count: 0,
+          sum: 0,
+          values: []
+        };
+      }
+      acc[item.condition].count += 1;
+      acc[item.condition].sum += item.primary;
+      acc[item.condition].values.push(item.primary);
+      return acc;
+    }, {} as Record<string, { condition: string; count: number; sum: number; values: number[] }>);
     
-    // Extract values
-    const x = data.map(d => d.riskScore);
-    const y = data.map(d => d.lengthOfStay);
-    
-    // Calculate means
-    const meanX = x.reduce((sum, val) => sum + val, 0) / n;
-    const meanY = y.reduce((sum, val) => sum + val, 0) / n;
-    
-    // Calculate covariance and variances
-    let covariance = 0;
-    let varianceX = 0;
-    let varianceY = 0;
-    
-    for (let i = 0; i < n; i++) {
-      const diffX = x[i] - meanX;
-      const diffY = y[i] - meanY;
-      covariance += diffX * diffY;
-      varianceX += diffX * diffX;
-      varianceY += diffY * diffY;
-    }
-    
-    // Calculate correlation coefficient
-    const correlation = covariance / Math.sqrt(varianceX * varianceY);
-    return parseFloat(correlation.toFixed(2));
+    // Calculate average and standard deviation
+    return Object.values(byCondition).map(group => {
+      const avg = group.sum / group.count;
+      const squaredDiffs = group.values.map(v => Math.pow(v - avg, 2));
+      const avgSquaredDiff = squaredDiffs.reduce((s, v) => s + v, 0) / group.count;
+      const stdDev = Math.sqrt(avgSquaredDiff);
+      
+      return {
+        name: group.condition,
+        average: parseFloat(avg.toFixed(1)),
+        min: Math.min(...group.values),
+        max: Math.max(...group.values),
+        stdDev: parseFloat(stdDev.toFixed(1))
+      };
+    });
+  }, [getFormattedRiskData]);
+  
+  // Get factor name by ID
+  const getFactorName = (factorId: string) => {
+    const factor = riskFactors.find(f => f.id === factorId);
+    return factor ? factor.name : factorId;
   };
   
-  const correlationCoefficient = calculateCorrelation(correlationData);
+  // Get factor unit by ID
+  const getFactorUnit = (factorId: string) => {
+    const factor = riskFactors.find(f => f.id === factorId);
+    return factor ? factor.unit : "";
+  };
   
-  // Identify top risk factors based on the data
-  const highRiskConditions = conditionRiskData
-    .filter(d => d.count >= 5) // Ensure sufficient data points
-    .sort((a, b) => b.avgRisk - a.avgRisk)
-    .slice(0, 3);
-    
-  const highReadmissionConditions = conditionRiskData
-    .filter(d => d.count >= 5)
-    .sort((a, b) => b.avgReadmission - a.avgReadmission)
-    .slice(0, 3);
+  // Correlation strength assessment
+  const getCorrelationStrength = (corr: number) => {
+    const absCorr = Math.abs(corr);
+    if (absCorr >= 0.7) return "Strong";
+    if (absCorr >= 0.5) return "Moderate";
+    if (absCorr >= 0.3) return "Weak";
+    return "Very weak";
+  };
   
+  // Correlation color assessment
+  const getCorrelationColor = (corr: number) => {
+    const absCorr = Math.abs(corr);
+    if (absCorr >= 0.7) return "destructive";
+    if (absCorr >= 0.5) return "secondary";
+    if (absCorr >= 0.3) return "default";
+    return "outline";
+  };
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <CardTitle>Risk Factor Analysis</CardTitle>
-            <CardDescription>
-              Identify and quantify key factors affecting patient outcomes
-            </CardDescription>
-          </div>
-          <Select value={outcomeFilter} onValueChange={setOutcomeFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by outcome" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Outcomes</SelectItem>
-              {outcomes.map(outcome => (
-                <SelectItem key={outcome} value={outcome}>{outcome}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        <CardTitle>Risk Factor Analysis</CardTitle>
+        <CardDescription>
+          Analyze relationships between risk factors and outcomes
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Tabs defaultValue="age">
+        <div className="flex flex-wrap gap-4">
+          <div className="space-y-1 flex-1 min-w-[150px]">
+            <label className="text-sm font-medium">Primary Factor</label>
+            <Select value={primaryFactor} onValueChange={setPrimaryFactor}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select factor" />
+              </SelectTrigger>
+              <SelectContent>
+                {riskFactors.map(factor => (
+                  <SelectItem key={factor.id} value={factor.id}>
+                    {factor.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value="riskScore">Risk Score</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-1 flex-1 min-w-[150px]">
+            <label className="text-sm font-medium">Secondary Factor</label>
+            <Select value={secondaryFactor} onValueChange={setSecondaryFactor}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select factor" />
+              </SelectTrigger>
+              <SelectContent>
+                {riskFactors.map(factor => (
+                  <SelectItem key={factor.id} value={factor.id}>
+                    {factor.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value="riskScore">Risk Score</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-1 flex-1 min-w-[150px]">
+            <label className="text-sm font-medium">Outcome Factor</label>
+            <Select value={outcomeFactor} onValueChange={setOutcomeFactor}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select outcome" />
+              </SelectTrigger>
+              <SelectContent>
+                {riskFactors.map(factor => (
+                  <SelectItem key={factor.id} value={factor.id}>
+                    {factor.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value="riskScore">Risk Score</SelectItem>
+                <SelectItem value="readmissionRisk">Readmission Risk</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        <Tabs value={analysisType} onValueChange={(v) => setAnalysisType(v as any)}>
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="age">Age Factors</TabsTrigger>
-            <TabsTrigger value="condition">Condition Factors</TabsTrigger>
-            <TabsTrigger value="correlation">Risk Correlations</TabsTrigger>
+            <TabsTrigger value="correlation">Correlation</TabsTrigger>
+            <TabsTrigger value="distribution">Distribution</TabsTrigger>
+            <TabsTrigger value="trends">Risk Trends</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="age" className="space-y-4">
-            <div className="h-64">
-              <BarChart
-                data={ageRiskData}
-                index="group"
-                categories={["avgRisk", "avgReadmission"]}
-                colors={["red", "blue"]}
-                valueFormatter={(value) => `${value}`}
-              />
-            </div>
-            
-            <div className="text-sm text-muted-foreground space-y-2">
-              <p className="text-xs font-medium">Chart Legend:</p>
-              <div className="flex gap-4">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
-                  <span>Risk Score (0-100)</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full mr-1"></div>
-                  <span>Readmission Risk (%)</span>
-                </div>
-              </div>
-              
-              <p>
-                This analysis reveals that 
-                {ageRiskData.sort((a, b) => b.avgRisk - a.avgRisk)[0].group === "76+" 
-                  ? "elderly patients (76+) have the highest risk scores" 
-                  : `patients in the ${ageRiskData.sort((a, b) => b.avgRisk - a.avgRisk)[0].group} age group have the highest risk scores`}, 
-                averaging {ageRiskData.sort((a, b) => b.avgRisk - a.avgRisk)[0].avgRisk.toFixed(1)}.
-              </p>
-              
-              <p>
-                {ageRiskData.sort((a, b) => b.avgReadmission - a.avgReadmission)[0].group === ageRiskData.sort((a, b) => b.avgRisk - a.avgRisk)[0].group 
-                  ? "This same age group also shows the highest readmission risk" 
-                  : `The ${ageRiskData.sort((a, b) => b.avgReadmission - a.avgReadmission)[0].group} age group shows the highest readmission risk`}, 
-                suggesting age is a consistent factor in both initial risk assessment and likelihood of readmission.
-              </p>
-              
-              {outcomeFilter !== "all" && (
-                <p className="text-xs italic">
-                  Note: Data filtered to show only participants with outcome: "{outcomeFilter}"
-                </p>
-              )}
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="condition" className="space-y-4">
-            <div className="h-64">
-              <BarChart
-                data={conditionRiskData.slice(0, 5)}
-                index="condition"
-                categories={["avgRisk", "avgReadmission"]}
-                colors={["red", "blue"]}
-                valueFormatter={(value) => `${value}`}
-                layout="vertical"
-              />
-            </div>
-            
-            <div className="text-sm text-muted-foreground space-y-2">
-              <p className="text-xs font-medium">Chart Legend:</p>
-              <div className="flex gap-4">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-red-500 rounded-full mr-1"></div>
-                  <span>Risk Score (0-100)</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full mr-1"></div>
-                  <span>Readmission Risk (%)</span>
-                </div>
-              </div>
-              
-              <p>
-                Among clinical conditions, 
-                {highRiskConditions.length > 0 
-                  ? `${highRiskConditions.map(c => c.condition).join(", ")} ${highRiskConditions.length > 1 ? "are" : "is"} associated with the highest risk scores` 
-                  : "no condition stands out with significantly elevated risk"}.
-              </p>
-              
-              <p>
-                {highReadmissionConditions.length > 0 
-                  ? `${highReadmissionConditions.map(c => c.condition).join(", ")} ${highReadmissionConditions.length > 1 ? "show" : "shows"} the highest readmission risk` 
-                  : "No condition shows a significantly higher readmission risk than others"}.
-                {highRiskConditions[0]?.condition === highReadmissionConditions[0]?.condition 
-                  ? " This overlap indicates that the condition is a key determinant of both initial and subsequent risk." 
-                  : " The difference between high-risk and high-readmission conditions suggests distinct risk pathways."}
-              </p>
-              
-              {outcomeFilter !== "all" && (
-                <p className="text-xs italic">
-                  Note: Data filtered to show only participants with outcome: "{outcomeFilter}"
-                </p>
-              )}
-            </div>
-          </TabsContent>
-          
           <TabsContent value="correlation" className="space-y-4">
-            <div className="h-64">
-              <ScatterChart
-                data={correlationData}
-                xAxis={{
-                  dataKey: "riskScore",
-                  label: "Risk Score"
-                }}
-                yAxis={{
-                  dataKey: "lengthOfStay",
-                  label: "Length of Stay (days)"
-                }}
-                series={[
-                  {
-                    dataKey: "outcome",
-                    valueFormatter: (value) => `${value}`,
-                    label: "Outcome",
-                    showMark: true
-                  }
-                ]}
-                tooltip={{ trigger: "item" }}
-              />
-            </div>
-            
-            <div className="text-sm text-muted-foreground space-y-2">
-              <div className="flex justify-between items-center">
-                <p>Correlation coefficient (r): {correlationCoefficient}</p>
-                <div className="text-xs px-2 py-1 rounded bg-muted">
-                  {Math.abs(correlationCoefficient) < 0.3 ? "Weak correlation" : 
-                   Math.abs(correlationCoefficient) < 0.7 ? "Moderate correlation" : 
-                   "Strong correlation"}
-                </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="h-[300px]">
+                <ScatterChart 
+                  data={scatterData}
+                  xAxis={[{ 
+                    scaleType: 'linear',
+                    dataKey: 'x',
+                    label: `${getFactorName(primaryFactor)} (${getFactorUnit(primaryFactor)})`
+                  }]}
+                  yAxis={[{
+                    scaleType: 'linear',
+                    dataKey: 'y',
+                    label: `${getFactorName(secondaryFactor)} (${getFactorUnit(secondaryFactor)})`
+                  }]}
+                  series={[
+                    {
+                      dataKey: 'id',
+                      label: 'Participants',
+                      valueFormatter: (value) => `ID: ${value}`
+                    }
+                  ]}
+                  colorBy="condition"
+                />
               </div>
               
-              <p>
-                {correlationCoefficient > 0 
-                  ? "There is a positive correlation between risk scores and length of stay, indicating that higher-risk patients typically stay longer in the hospital." 
-                  : correlationCoefficient < 0 
-                    ? "There is a negative correlation between risk scores and length of stay, suggesting higher-risk patients may have shorter stays, possibly due to faster interventions or other factors." 
-                    : "There is no meaningful correlation between risk scores and length of stay."}
+              <div className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <h3 className="font-medium mb-2">Correlation Analysis</h3>
+                  <div className="space-y-2">
+                    <p>
+                      <span className="font-medium">Correlation coefficient:</span>{" "}
+                      {correlationResult.toFixed(3)}
+                    </p>
+                    <p>
+                      <span className="font-medium">Strength:</span>{" "}
+                      <Badge variant={getCorrelationColor(correlationResult) as any}>
+                        {getCorrelationStrength(correlationResult)}
+                      </Badge>
+                    </p>
+                    <p>
+                      <span className="font-medium">Direction:</span>{" "}
+                      {correlationResult > 0 ? "Positive" : correlationResult < 0 ? "Negative" : "No correlation"}
+                    </p>
+                  </div>
+                </div>
                 
-                {Math.abs(correlationCoefficient) > 0.7 
-                  ? " This strong correlation suggests risk scores are reliable predictors of resource utilization."
-                  : Math.abs(correlationCoefficient) > 0.3 
-                    ? " This moderate correlation indicates risk scores have some predictive value for resource planning."
-                    : " This weak correlation suggests factors beyond initial risk assessment significantly influence hospital stays."}
-              </p>
-              
+                <div className="p-4 bg-muted rounded-lg">
+                  <h3 className="font-medium mb-2">Regression Analysis</h3>
+                  <div className="space-y-2">
+                    <p>
+                      <span className="font-medium">Linear model:</span>{" "}
+                      {getFactorName(outcomeFactor)} = {regressionResult.slope.toFixed(2)} × {getFactorName(primaryFactor)} 
+                      {regressionResult.intercept >= 0 ? " + " : " - "}
+                      {Math.abs(regressionResult.intercept).toFixed(2)}
+                    </p>
+                    <p>
+                      <span className="font-medium">Interpretation:</span>{" "}
+                      For each 1 {getFactorUnit(primaryFactor)} increase in {getFactorName(primaryFactor)}, 
+                      {getFactorName(outcomeFactor)} changes by {regressionResult.slope.toFixed(2)} {getFactorUnit(outcomeFactor)}.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="text-sm text-muted-foreground">
+              <p className="mb-1"><span className="font-medium">Analysis Insights:</span></p>
               <p>
-                The scatter plot reveals 
-                {correlationData.some(d => d.riskScore > 80 && d.lengthOfStay < 5) 
-                  ? " some high-risk patients with unexpectedly short stays, " 
-                  : ""}
-                {correlationData.some(d => d.riskScore < 30 && d.lengthOfStay > 15) 
-                  ? " some low-risk patients with extended stays, " 
-                  : ""}
-                suggesting that
-                {Math.abs(correlationCoefficient) < 0.5 
-                  ? " risk assessment alone may not capture all factors affecting length of stay."
-                  : " while risk scores correlate with length of stay, individual cases may still deviate from the pattern."}
+                {correlationResult > 0.7 
+                  ? `There is a strong positive correlation between ${getFactorName(primaryFactor)} and ${getFactorName(secondaryFactor)}, suggesting that as ${getFactorName(primaryFactor)} increases, ${getFactorName(secondaryFactor)} also tends to increase significantly.`
+                : correlationResult < -0.7
+                  ? `There is a strong negative correlation between ${getFactorName(primaryFactor)} and ${getFactorName(secondaryFactor)}, suggesting that as ${getFactorName(primaryFactor)} increases, ${getFactorName(secondaryFactor)} tends to decrease significantly.`
+                : correlationResult > 0.5
+                  ? `There is a moderate positive correlation between ${getFactorName(primaryFactor)} and ${getFactorName(secondaryFactor)}, suggesting some tendency for ${getFactorName(secondaryFactor)} to increase as ${getFactorName(primaryFactor)} increases.`
+                : correlationResult < -0.5
+                  ? `There is a moderate negative correlation between ${getFactorName(primaryFactor)} and ${getFactorName(secondaryFactor)}, suggesting some tendency for ${getFactorName(secondaryFactor)} to decrease as ${getFactorName(primaryFactor)} increases.`
+                : `There is a weak or no significant correlation between ${getFactorName(primaryFactor)} and ${getFactorName(secondaryFactor)}, suggesting these factors may be largely independent.`
+                }
               </p>
+              <p className="mt-1">
+                {Math.abs(regressionResult.slope) > 1 
+                  ? `The regression analysis shows a substantial effect of ${getFactorName(primaryFactor)} on ${getFactorName(outcomeFactor)}.`
+                : Math.abs(regressionResult.slope) > 0.5
+                  ? `The regression analysis shows a moderate effect of ${getFactorName(primaryFactor)} on ${getFactorName(outcomeFactor)}.`
+                : `The regression analysis shows a minimal effect of ${getFactorName(primaryFactor)} on ${getFactorName(outcomeFactor)}.`
+                }
+              </p>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="distribution">
+            <div className="space-y-4">
+              <div className="h-[300px]">
+                <BarChart
+                  data={distributionData}
+                  index="name"
+                  categories={["average"]}
+                  valueFormatter={(value) => `${value} ${getFactorUnit(primaryFactor)}`}
+                  colors={["blue"]}
+                />
+              </div>
               
-              {outcomeFilter !== "all" && (
-                <p className="text-xs italic">
-                  Note: Data filtered to show only participants with outcome: "{outcomeFilter}"
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Condition</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Std. Dev</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {distributionData.map((row) => (
+                      <tr key={row.name}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{row.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {row.average} {getFactorUnit(primaryFactor)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {row.min} {getFactorUnit(primaryFactor)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {row.max} {getFactorUnit(primaryFactor)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          ±{row.stdDev} {getFactorUnit(primaryFactor)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                <p className="mb-1"><span className="font-medium">Distribution Insights:</span></p>
+                <p>
+                  The distribution of {getFactorName(primaryFactor)} varies across different conditions, with 
+                  {distributionData.length > 0 
+                    ? ` ${distributionData.sort((a, b) => b.average - a.average)[0].name} showing the highest average (${distributionData.sort((a, b) => b.average - a.average)[0].average} ${getFactorUnit(primaryFactor)})` 
+                    : " no data available"
+                  }.
+                  {distributionData.length > 0 
+                    ? ` The condition with highest variability is ${distributionData.sort((a, b) => b.stdDev - a.stdDev)[0].name} (±${distributionData.sort((a, b) => b.stdDev - a.stdDev)[0].stdDev} ${getFactorUnit(primaryFactor)}).` 
+                    : ""
+                  }
                 </p>
-              )}
+              </div>
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="trends">
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground mb-2">
+                This analysis shows how {getFactorName(primaryFactor)} relates to risk outcomes across different patient groups.
+              </div>
+              
+              <div className="h-[300px]">
+                <LineChart
+                  data={getFormattedRiskData}
+                  index="primary"
+                  categories={["outcome"]}
+                  valueFormatter={(value) => `${value}`}
+                  colors={["red"]}
+                />
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                <p className="mb-1"><span className="font-medium">Trend Insights:</span></p>
+                <p>
+                  {regressionResult.slope > 0.1
+                    ? `There is a positive trend between ${getFactorName(primaryFactor)} and ${getFactorName(outcomeFactor)}, indicating that higher ${getFactorName(primaryFactor)} is associated with higher ${getFactorName(outcomeFactor)}.`
+                  : regressionResult.slope < -0.1
+                    ? `There is a negative trend between ${getFactorName(primaryFactor)} and ${getFactorName(outcomeFactor)}, indicating that higher ${getFactorName(primaryFactor)} is associated with lower ${getFactorName(outcomeFactor)}.`
+                    : `There does not appear to be a significant trend between ${getFactorName(primaryFactor)} and ${getFactorName(outcomeFactor)}.`
+                  }
+                  {Math.abs(regressionResult.slope) > 0.5
+                    ? ` This relationship appears substantial and may have clinical significance.`
+                    : ` While a relationship exists, its clinical significance may be limited.`
+                  }
+                </p>
+              </div>
             </div>
           </TabsContent>
         </Tabs>

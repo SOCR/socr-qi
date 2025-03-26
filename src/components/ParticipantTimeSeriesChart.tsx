@@ -20,13 +20,17 @@ const ParticipantTimeSeriesChart = () => {
   const [compareToConditionMean, setCompareToConditionMean] = useState(false);
   const [compareToUnitMean, setCompareToUnitMean] = useState(false);
   const [showConfidenceBands, setShowConfidenceBands] = useState(false);
+  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
+  const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
   
   // Get the time series data for selected participants
   const timeSeriesData = useParticipantTimeSeriesData(data, {
     selectedParticipantIds,
     compareToConditionMean,
     compareToUnitMean,
-    showConfidenceBands
+    showConfidenceBands,
+    selectedConditions,
+    selectedUnits
   });
 
   // Define chart categories based on selected metric
@@ -185,6 +189,10 @@ const ParticipantTimeSeriesChart = () => {
           setCompareToUnitMean={setCompareToUnitMean}
           showConfidenceBands={showConfidenceBands}
           setShowConfidenceBands={setShowConfidenceBands}
+          selectedConditions={selectedConditions}
+          setSelectedConditions={setSelectedConditions}
+          selectedUnits={selectedUnits}
+          setSelectedUnits={setSelectedUnits}
         />
 
         {selectedParticipantIds.length > 0 ? (
