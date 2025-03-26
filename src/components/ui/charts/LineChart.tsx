@@ -9,115 +9,120 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  TooltipProps
+  ReferenceLine,
 } from "recharts";
 import ChartContainer from "./ChartContainer";
 
-// Define a palette of colors for charts
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#d53e4f', '#66c2a5'];
-
-// LineChart Component
 interface LineChartProps {
   data: any[];
   index: string;
   categories: string[];
   colors?: string[];
   valueFormatter?: (value: number) => string;
-  title?: string;
-  height?: number;
-  customTooltip?: React.ComponentType<TooltipProps<any, any>>;
-  customTooltipParams?: Record<string, any>;
   showConfidenceBands?: boolean;
-  confidenceBandCategories?: {
-    main: string;
-    upper: string;
-    lower: string;
-  }[];
+  confidenceBandCategories?: string[];
+  height?: number;
+  showLegend?: boolean;
+  yAxisLabel?: string;
 }
 
-export const LineChart: React.FC<LineChartProps> = ({
+export const LineChart = ({
   data,
   index,
   categories,
-  colors = COLORS,
-  valueFormatter = (value) => String(value),
-  title,
-  height,
-  customTooltip,
-  customTooltipParams = {},
+  colors = ["blue", "green", "red", "orange", "purple", "teal", "yellow", "pink", "indigo", "cyan"],
+  valueFormatter = (value: number) => `${value}`,
   showConfidenceBands = false,
-  confidenceBandCategories = []
-}) => {
-  // Generate a unique list of categories, ensuring no duplicates
-  const uniqueCategories = [...new Set(categories)];
-  
+  confidenceBandCategories = [],
+  height = 300,
+  showLegend = true,
+  yAxisLabel,
+}: LineChartProps) => {
+  if (!data?.length) {
+    return (
+      <div className="flex items-center justify-center h-full w-full bg-muted/20 rounded-md">
+        <p className="text-muted-foreground">No data available</p>
+      </div>
+    );
+  }
+
+  // Generate a color for each category
+  const getColor = (idx: number) => {
+    if (colors && colors[idx]) return colors[idx];
+    return `hsl(${(idx * 30) % 360}, 70%, 50%)`;
+  };
+
   return (
-    <ChartContainer title={title} height={height}>
-      <RechartsLineChart data={data} margin={{ top: 10, right: 30, left: 30, bottom: 40 }}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey={index} />
-        <YAxis tickFormatter={valueFormatter} />
-        
-        {/* Use custom tooltip if provided, otherwise use default */}
-        {customTooltip ? (
-          <Tooltip content={(props) => {
-            const CustomTooltipComponent = customTooltip;
-            return <CustomTooltipComponent {...props} formatter={valueFormatter} {...customTooltipParams} />;
-          }} />
-        ) : (
-          <Tooltip formatter={valueFormatter} />
+    <ChartContainer height={height}>
+      <RechartsLineChart
+        data={data}
+        margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+        <XAxis
+          dataKey={index}
+          tick={{ fontSize: 12 }}
+          tickLine={{ stroke: "gray", strokeWidth: 1 }}
+          axisLine={{ stroke: "gray", strokeWidth: 1 }}
+        />
+        <YAxis
+          tick={{ fontSize: 12 }}
+          tickLine={{ stroke: "gray", strokeWidth: 1 }}
+          axisLine={{ stroke: "gray", strokeWidth: 1 }}
+          tickFormatter={valueFormatter}
+          label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: 'insideLeft' } : undefined}
+        />
+        <Tooltip
+          formatter={(value: number) => [valueFormatter(value), ""]}
+          labelFormatter={(label) => `${label}`}
+          contentStyle={{ backgroundColor: "white", borderRadius: "6px" }}
+        />
+        {showLegend && (
+          <Legend
+            align="center"
+            verticalAlign="bottom"
+            height={36}
+            wrapperStyle={{ fontSize: 12 }}
+          />
         )}
-        
-        <Legend />
-        
-        {/* Regular line series */}
-        {uniqueCategories.map((category, i) => (
+
+        {/* Render confidence bands if enabled */}
+        {showConfidenceBands &&
+          confidenceBandCategories.map((category, idx) => {
+            const baseCat = category.replace(/_upper$|_lower$/, "");
+            if (category.endsWith("_upper")) {
+              const lowerCat = `${baseCat}_lower`;
+              return (
+                <Line
+                  key={`band-${idx}`}
+                  type="monotone"
+                  dataKey={category}
+                  stroke="none"
+                  dot={false}
+                  activeDot={false}
+                  fill={getColor(idx)}
+                  fillOpacity={0.1}
+                />
+              );
+            }
+            return null;
+          })}
+
+        {/* Render the actual lines */}
+        {categories.map((category, idx) => (
           <Line
             key={category}
             type="monotone"
             dataKey={category}
-            stroke={colors[i % colors.length]}
-            activeDot={{ r: 8 }}
+            stroke={getColor(idx)}
+            fill={getColor(idx)}
+            strokeWidth={2}
+            dot={{ r: 4, strokeWidth: 1 }}
+            activeDot={{ r: 6, strokeWidth: 1 }}
             name={category}
-            connectNulls={true}
-            dot={uniqueCategories.length > 10 ? false : { r: 3 }}
           />
-        ))}
-        
-        {/* Confidence bands if enabled */}
-        {showConfidenceBands && confidenceBandCategories.map((bandSet, i) => (
-          <React.Fragment key={`band-${i}`}>
-            <Line
-              type="monotone"
-              dataKey={bandSet.main}
-              stroke={colors[i % colors.length]}
-              strokeWidth={2}
-              activeDot={{ r: 8 }}
-              connectNulls={true}
-            />
-            <Line
-              type="monotone"
-              dataKey={bandSet.upper}
-              stroke={colors[i % colors.length]}
-              strokeWidth={1}
-              strokeDasharray="3 3"
-              activeDot={false}
-              connectNulls={true}
-            />
-            <Line
-              type="monotone"
-              dataKey={bandSet.lower}
-              stroke={colors[i % colors.length]}
-              strokeWidth={1}
-              strokeDasharray="3 3"
-              activeDot={false}
-              connectNulls={true}
-            />
-          </React.Fragment>
         ))}
       </RechartsLineChart>
     </ChartContainer>
   );
 };
-
-export default LineChart;

@@ -1,200 +1,219 @@
 
-import React, { useMemo } from "react";
-import { calculateCorrelation, linearRegression } from "@/utils/analyticsUtils";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import React, { useState, useMemo } from "react";
+import { useData } from "@/context/DataContext";
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import ScatterChart from "@/components/ScatterChart";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, RadarChart } from "@/components/ui/chart";
+import { calculateCorrelation, linearRegression } from "@/utils/analyticsUtils";
 
-interface CorrelationAnalysisProps {
-  data: any[];
-  xVariable: string;
-  yVariable: string;
-  variableOptions: { value: string; label: string }[];
-}
+// Define the statistical metric options
+const MetricOptions = [
+  { id: "age", name: "Age" },
+  { id: "riskScore", name: "Risk Score" },
+  { id: "readmissionRisk", name: "Readmission Risk" },
+  { id: "lengthOfStay", name: "Length of Stay" },
+  { id: "heartRate", name: "Heart Rate (latest)" },
+  { id: "bloodPressure", name: "Blood Pressure (latest)" },
+  { id: "temperature", name: "Temperature (latest)" },
+  { id: "oxygenSaturation", name: "Oxygen Saturation (latest)" },
+];
 
-const CorrelationAnalysis: React.FC<CorrelationAnalysisProps> = ({
-  data,
-  xVariable,
-  yVariable,
-  variableOptions
-}) => {
-  // Memoize computations for performance
-  const analysisResults = useMemo(() => {
-    // Extract the variables from data
-    const xValues = data.map(p => p[xVariable]);
-    const yValues = data.map(p => p[yVariable]);
-    
-    // Run correlation and regression
-    const correlationValue = calculateCorrelation(xValues, yValues);
-    const regression = linearRegression(xValues, yValues);
-    
-    // Calculate correlations for other pairs
-    const allCorrelations = variableOptions.map(xOpt => {
-      return variableOptions.map(yOpt => {
-        if (xOpt.value === yOpt.value) return { x: xOpt.value, y: yOpt.value, correlation: 1 };
-        
-        const xVals = data.map(p => p[xOpt.value]);
-        const yVals = data.map(p => p[yOpt.value]);
-        const corr = calculateCorrelation(xVals, yVals);
-        
+const CorrelationAnalysis = () => {
+  const { data } = useData();
+  const [xMetric, setXMetric] = useState("age");
+  const [yMetric, setYMetric] = useState("riskScore");
+
+  // Extract data points
+  const scatterData = useMemo(() => {
+    return data.map(participant => {
+      let xValue;
+      let yValue;
+      
+      // Extract X value
+      if (xMetric === "age" || xMetric === "riskScore" || xMetric === "readmissionRisk" || xMetric === "lengthOfStay") {
+        xValue = participant[xMetric as keyof typeof participant];
+      } else {
+        // Get latest vital sign measurement
+        if (participant.measurements.length > 0) {
+          const latest = participant.measurements[participant.measurements.length - 1];
+          if (xMetric === "heartRate") xValue = latest.heartRate;
+          else if (xMetric === "bloodPressure") xValue = latest.bloodPressureSystolic;
+          else if (xMetric === "temperature") xValue = latest.temperature;
+          else if (xMetric === "oxygenSaturation") xValue = latest.oxygenSaturation;
+        }
+      }
+      
+      // Extract Y value
+      if (yMetric === "age" || yMetric === "riskScore" || yMetric === "readmissionRisk" || yMetric === "lengthOfStay") {
+        yValue = participant[yMetric as keyof typeof participant];
+      } else {
+        // Get latest vital sign measurement
+        if (participant.measurements.length > 0) {
+          const latest = participant.measurements[participant.measurements.length - 1];
+          if (yMetric === "heartRate") yValue = latest.heartRate;
+          else if (yMetric === "bloodPressure") yValue = latest.bloodPressureSystolic;
+          else if (yMetric === "temperature") yValue = latest.temperature;
+          else if (yMetric === "oxygenSaturation") yValue = latest.oxygenSaturation;
+        }
+      }
+      
+      if (xValue !== undefined && yValue !== undefined) {
         return {
-          x: xOpt.value,
-          y: yOpt.value,
-          correlation: corr
+          id: participant.id,
+          x: xValue,
+          y: yValue,
+          outcome: participant.outcome,
+          condition: participant.condition,
+          unit: participant.unit,
+          gender: participant.gender
         };
-      });
-    }).flat();
+      }
+      return null;
+    }).filter(point => point !== null) as any[];
+  }, [data, xMetric, yMetric]);
+  
+  // Calculate correlation
+  const correlation = useMemo(() => {
+    if (scatterData.length < 3) return 0;
     
-    // Prepare scatter plot data
-    const scatterData = data.map(p => ({
-      x: p[xVariable],
-      y: p[yVariable],
-      id: p.id,
-      outcome: p.outcome
-    }));
+    const xValues = scatterData.map(d => d.x);
+    const yValues = scatterData.map(d => d.y);
     
-    // Generate regression line points
+    return calculateCorrelation(xValues, yValues);
+  }, [scatterData]);
+  
+  // Calculate regression line
+  const regressionPoints = useMemo(() => {
+    if (scatterData.length < 3) return [];
+    
+    const xValues = scatterData.map(d => d.x);
+    const yValues = scatterData.map(d => d.y);
+    
+    const { slope, intercept } = linearRegression(xValues, yValues);
+    
+    // Get min and max X values
     const minX = Math.min(...xValues);
     const maxX = Math.max(...xValues);
-    const regressionPoints = [
-      { x: minX, y: regression.slope * minX + regression.intercept },
-      { x: maxX, y: regression.slope * maxX + regression.intercept }
+    
+    // Create points for line
+    return [
+      { x: minX, y: slope * minX + intercept },
+      { x: maxX, y: slope * maxX + intercept }
     ];
-    
-    // Calculate strengths of relationship with other variables
-    const relationshipStrengths = variableOptions
-      .filter(opt => opt.value !== xVariable)
-      .map(opt => {
-        const vals = data.map(p => p[opt.value]);
-        const corr = Math.abs(calculateCorrelation(xValues, vals));
-        return {
-          variable: opt.label,
-          strength: parseFloat(corr.toFixed(3))
-        };
-      })
-      .sort((a, b) => b.strength - a.strength);
-    
-    // Calculate correlation matrix data for radar chart
-    const radarData = variableOptions.map(opt => {
-      const result: Record<string, any> = { variable: opt.label };
-      
-      variableOptions.forEach(innerOpt => {
-        if (innerOpt.value !== opt.value) {
-          const correlation = allCorrelations.find(
-            c => (c.x === opt.value && c.y === innerOpt.value) || 
-                (c.x === innerOpt.value && c.y === opt.value)
-          );
-          
-          result[innerOpt.label] = correlation ? Math.abs(correlation.correlation) : 0;
-        }
-      });
-      
-      return result;
-    });
-    
-    return {
-      correlationValue,
-      regression,
-      scatterData,
-      regressionPoints,
-      relationshipStrengths,
-      radarData
-    };
-  }, [data, xVariable, yVariable, variableOptions]);
+  }, [scatterData]);
   
+  // Get the name of the metric
+  const getMetricName = (id: string) => {
+    const metric = MetricOptions.find(m => m.id === id);
+    return metric ? metric.name : id;
+  };
+  
+  // Assess correlation strength
+  const getCorrelationStrength = () => {
+    const absCorr = Math.abs(correlation);
+    if (absCorr >= 0.7) return "Strong";
+    if (absCorr >= 0.5) return "Moderate";
+    if (absCorr >= 0.3) return "Weak";
+    return "Very weak";
+  };
+  
+  // Get badge color based on correlation strength
+  const getCorrelationColor = () => {
+    const absCorr = Math.abs(correlation);
+    if (absCorr >= 0.7) return "destructive";
+    if (absCorr >= 0.5) return "secondary";
+    if (absCorr >= 0.3) return "default";
+    return "outline";
+  };
+
   return (
-    <div className="space-y-6">
-      <Alert>
-        <AlertTitle>Correlation Analysis Results</AlertTitle>
-        <AlertDescription>
-          The correlation between {variableOptions.find(v => v.value === xVariable)?.label} and {" "}
-          {variableOptions.find(v => v.value === yVariable)?.label} is{" "}
-          <strong>{analysisResults.correlationValue.toFixed(3)}</strong>.
-          {Math.abs(analysisResults.correlationValue) > 0.7 && " This indicates a strong relationship."}
-          {Math.abs(analysisResults.correlationValue) > 0.4 && Math.abs(analysisResults.correlationValue) <= 0.7 && " This indicates a moderate relationship."}
-          {Math.abs(analysisResults.correlationValue) <= 0.4 && " This indicates a weak relationship."}
-        </AlertDescription>
-      </Alert>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Scatter Plot with Regression Line</CardTitle>
-            <CardDescription>
-              Visual representation of the relationship between variables
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+    <Card>
+      <CardHeader>
+        <CardTitle>Correlation Analysis</CardTitle>
+        <CardDescription>
+          Analyze relationships between different parameters
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-4">
+          <div className="space-y-1 min-w-[150px] flex-1">
+            <label className="text-sm font-medium">X Axis</label>
+            <Select value={xMetric} onValueChange={setXMetric}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select metric" />
+              </SelectTrigger>
+              <SelectContent>
+                {MetricOptions.map(option => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-1 min-w-[150px] flex-1">
+            <label className="text-sm font-medium">Y Axis</label>
+            <Select value={yMetric} onValueChange={setYMetric}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select metric" />
+              </SelectTrigger>
+              <SelectContent>
+                {MetricOptions.map(option => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        <div className="pt-2">
+          <div className="bg-muted p-3 rounded-md mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-medium">Correlation Analysis</h3>
+              <Badge variant={getCorrelationColor() as any}>
+                {getCorrelationStrength()}
+              </Badge>
+            </div>
+            <p className="text-sm">
+              <strong>Correlation coefficient:</strong> {correlation.toFixed(3)}
+            </p>
+            <p className="text-sm">
+              <strong>Direction:</strong> {correlation > 0 ? "Positive" : correlation < 0 ? "Negative" : "No correlation"}
+            </p>
+            <p className="text-sm mt-1">
+              {correlation > 0.7 || correlation < -0.7
+                ? `Strong ${correlation > 0 ? "positive" : "negative"} relationship between ${getMetricName(xMetric)} and ${getMetricName(yMetric)}.`
+                : correlation > 0.5 || correlation < -0.5
+                  ? `Moderate ${correlation > 0 ? "positive" : "negative"} relationship between ${getMetricName(xMetric)} and ${getMetricName(yMetric)}.`
+                  : `Weak or no significant relationship between ${getMetricName(xMetric)} and ${getMetricName(yMetric)}.`
+              }
+            </p>
+          </div>
+          
+          <div className="h-[350px]">
             <ScatterChart
-              data={analysisResults.scatterData}
+              data={scatterData}
               xAxisKey="x"
               yAxisKey="y"
-              xAxisLabel={variableOptions.find(v => v.value === xVariable)?.label || xVariable}
-              yAxisLabel={variableOptions.find(v => v.value === yVariable)?.label || yVariable}
-              regressionLine={analysisResults.regressionPoints}
-              height={300}
+              xAxisLabel={getMetricName(xMetric)}
+              yAxisLabel={getMetricName(yMetric)}
+              tooltipLabel="Participant"
+              height={350}
             />
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Variable Relationship Strengths</CardTitle>
-            <CardDescription>
-              Absolute correlation values with {variableOptions.find(v => v.value === xVariable)?.label}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <BarChart
-              data={analysisResults.relationshipStrengths}
-              index="variable"
-              categories={["strength"]}
-              valueFormatter={(value) => value.toFixed(3)}
-              layout="vertical"
-              height={300}
-            />
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Multi-Variable Correlation Network</CardTitle>
-          <CardDescription>
-            Relationships between all variables in the dataset
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="h-[350px]">
-          <RadarChart
-            data={analysisResults.radarData}
-            dataKey="variable"
-            categories={variableOptions.map(opt => opt.label).filter(
-              label => label !== variableOptions.find(v => v.value === xVariable)?.label
-            )}
-            valueFormatter={(value) => value.toFixed(2)}
-            height={320}
-          />
-        </CardContent>
-      </Card>
-      
-      <div className="text-sm">
-        <p>
-          <strong>Regression Equation:</strong>{" "}
-          {variableOptions.find(v => v.value === yVariable)?.label} = {analysisResults.regression.slope.toFixed(3)} × {variableOptions.find(v => v.value === xVariable)?.label} {analysisResults.regression.intercept >= 0 ? "+" : ""} {analysisResults.regression.intercept.toFixed(3)}
-        </p>
-        <p className="mt-2">
-          This suggests that for each unit increase in {variableOptions.find(v => v.value === xVariable)?.label}, 
-          {variableOptions.find(v => v.value === yVariable)?.label} changes by approximately {analysisResults.regression.slope.toFixed(3)} units.
-        </p>
-        <p className="mt-2">
-          <strong>R-squared value:</strong> {(analysisResults.correlationValue * analysisResults.correlationValue).toFixed(3)}. 
-          This indicates that approximately {Math.round(analysisResults.correlationValue * analysisResults.correlationValue * 100)}% of the 
-          variation in {variableOptions.find(v => v.value === yVariable)?.label} can be explained by 
-          {variableOptions.find(v => v.value === xVariable)?.label}.
-        </p>
-      </div>
-    </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
