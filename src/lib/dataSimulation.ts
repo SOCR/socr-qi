@@ -31,40 +31,134 @@ const shouldBeMissing = (missingProbability: number): boolean => {
   return Math.random() < missingProbability;
 };
 
-export const simulateData = (
-  numParticipants: number, 
-  startDate: Date = new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
-  endDate: Date = new Date(),
-  includeComorbidities: boolean = true,
-  includeMissingData: boolean = false
-): Participant[] => {
-  console.log("simulateData called with:", { numParticipants, startDate, endDate, includeComorbidities, includeMissingData });
+// Generate values with time-based patterns
+const generateTimeSeriesValue = (
+  baseValue: number,
+  dayIndex: number,
+  totalDays: number,
+  patternType: string,
+  variability: number
+): number => {
+  const timeProgress = dayIndex / totalDays;
+  
+  switch (patternType) {
+    case "improving":
+      // Gradually improving trend (decreasing for values like bloodPressure, increasing for values like oxygenSaturation)
+      return baseValue * (1 - timeProgress * 0.3 * variability);
+    case "deteriorating":
+      // Gradually deteriorating trend
+      return baseValue * (1 + timeProgress * 0.3 * variability);
+    case "fluctuating":
+      // Fluctuating pattern with waves
+      return baseValue * (1 + Math.sin(timeProgress * 10) * 0.15 * variability);
+    case "stable":
+      // Stable with minor random variations
+      return baseValue * (1 + (Math.random() - 0.5) * 0.1 * variability);
+    case "cyclic":
+      // Cyclic pattern (e.g., simulating medication effects)
+      return baseValue * (1 + Math.sin(timeProgress * 5) * 0.2 * variability);
+    default:
+      return baseValue;
+  }
+};
+
+export interface SimulationConfig {
+  numParticipants: number;
+  startDate: Date;
+  endDate: Date;
+  includeComorbidities: boolean;
+  includeMissingData: boolean;
+  missingDataProbability: number;
+  measurementFrequency: 'low' | 'medium' | 'high';
+  timePatterns: 'random' | 'realistic';
+  dataVariability: 'low' | 'medium' | 'high';
+  outcomeDistribution: 'balanced' | 'positive' | 'negative';
+}
+
+export const simulateData = (config: SimulationConfig): Participant[] => {
+  console.log("simulateData called with:", config);
   
   // Validate input dates
-  if (!(startDate instanceof Date) || isNaN(startDate.getTime())) {
-    console.error("Invalid startDate:", startDate);
+  if (!(config.startDate instanceof Date) || isNaN(config.startDate.getTime())) {
+    console.error("Invalid startDate:", config.startDate);
     throw new Error("Invalid start date provided");
   }
   
-  if (!(endDate instanceof Date) || isNaN(endDate.getTime())) {
-    console.error("Invalid endDate:", endDate);
+  if (!(config.endDate instanceof Date) || isNaN(config.endDate.getTime())) {
+    console.error("Invalid endDate:", config.endDate);
     throw new Error("Invalid end date provided");
   }
   
-  const units = ["Cardiology", "Neurology", "Oncology", "Emergency", "ICU", "General Medicine"];
-  const conditions = ["Hypertension", "Diabetes", "Heart Disease", "Stroke", "Cancer", "Respiratory Disease"];
-  const comorbidities = ["Obesity", "Smoking", "Alcohol Use", "Drug Use", "Depression", "Anxiety", "Asthma", "COPD", "Kidney Disease"];
+  const units = ["Cardiology", "Neurology", "Oncology", "Emergency", "ICU", "General Medicine", "Orthopedics", "Pediatrics"];
+  const conditions = [
+    "Hypertension", "Diabetes", "Heart Disease", "Stroke", "Cancer", "Respiratory Disease", 
+    "Sepsis", "Pneumonia", "Renal Failure", "Liver Disease", "Gastrointestinal Bleeding"
+  ];
+  const comorbidities = [
+    "Obesity", "Smoking", "Alcohol Use", "Drug Use", "Depression", "Anxiety", "Asthma", 
+    "COPD", "Kidney Disease", "Hypothyroidism", "Hyperlipidemia", "Dementia", "Osteoporosis"
+  ];
   const outcomes = ["Improved", "Stable", "Deteriorated", "Discharged", "Transferred", "Deceased"];
+  const outcomesByRisk = {
+    low: { // For patients with low risk scores (0-30)
+      positive: ["Improved", "Discharged"],
+      balanced: ["Improved", "Stable", "Discharged"],
+      negative: ["Stable", "Deteriorated"]
+    },
+    medium: { // For patients with medium risk scores (30-70)
+      positive: ["Improved", "Stable", "Discharged"],
+      balanced: ["Improved", "Stable", "Deteriorated", "Discharged"],
+      negative: ["Stable", "Deteriorated", "Transferred"]
+    },
+    high: { // For patients with high risk scores (70-100)
+      positive: ["Improved", "Stable", "Discharged", "Transferred"],
+      balanced: ["Stable", "Deteriorated", "Transferred", "Deceased"],
+      negative: ["Deteriorated", "Transferred", "Deceased"]
+    }
+  };
   const genders = ["Male", "Female", "Other"];
   const treatments = [
-    "Medication A", "Medication B", "Medication C", 
-    "Physical Therapy", "Occupational Therapy", "Surgery", 
-    "Radiation", "Chemotherapy", "Counseling"
+    "Medication A", "Medication B", "Medication C", "Medication D", "Medication E",
+    "Physical Therapy", "Occupational Therapy", "Surgery", "Radiation", "Chemotherapy", 
+    "Counseling", "Respiratory Therapy", "Dialysis", "Blood Transfusion"
   ];
+  const timePatterns = ["improving", "deteriorating", "fluctuating", "stable", "cyclic"];
+
+  // Determine measurement frequency
+  let measurementCount;
+  switch (config.measurementFrequency) {
+    case 'low':
+      measurementCount = { min: 3, max: 7 };
+      break;
+    case 'medium':
+      measurementCount = { min: 7, max: 14 };
+      break;
+    case 'high':
+      measurementCount = { min: 14, max: 30 };
+      break;
+    default:
+      measurementCount = { min: 5, max: 10 };
+  }
+
+  // Determine data variability factor
+  let variabilityFactor;
+  switch (config.dataVariability) {
+    case 'low':
+      variabilityFactor = 0.7;
+      break;
+    case 'medium':
+      variabilityFactor = 1.0;
+      break;
+    case 'high':
+      variabilityFactor = 1.5;
+      break;
+    default:
+      variabilityFactor = 1.0;
+  }
 
   const participants: Participant[] = [];
 
-  for (let i = 0; i < numParticipants; i++) {
+  for (let i = 0; i < config.numParticipants; i++) {
     const participantId = `P${(i + 1).toString().padStart(4, '0')}`;
     const age = getRandomInt(18, 90);
     const gender = getRandomElement(genders);
@@ -74,80 +168,146 @@ export const simulateData = (
     // Risk score between 0-100
     const riskScore = getRandomNumber(0, 100);
     
-    // Outcome influenced by risk score
+    // Determine outcome based on risk score and outcome distribution setting
     let outcome;
+    let riskBand: 'low' | 'medium' | 'high';
+    
     if (riskScore < 30) {
-      outcome = "Improved";
-    } else if (riskScore < 60) {
-      outcome = "Stable";
-    } else if (riskScore < 80) {
-      outcome = "Deteriorated";
+      riskBand = 'low';
+    } else if (riskScore < 70) {
+      riskBand = 'medium';
     } else {
-      outcome = getRandomElement(["Transferred", "Deceased"]);
+      riskBand = 'high';
     }
     
-    const lengthOfStay = getRandomInt(1, 30);
+    const possibleOutcomes = outcomesByRisk[riskBand][config.outcomeDistribution] || outcomesByRisk[riskBand].balanced;
+    outcome = getRandomElement(possibleOutcomes);
+    
+    const lengthOfStay = getRandomInt(1, 45);
     const readmissionRisk = getRandomNumber(0, 100);
     
     // Generate participant comorbidities if enabled
-    const participantComorbidities = includeComorbidities 
-      ? Array.from({ length: getRandomInt(0, 3) }, () => getRandomElement(comorbidities))
+    const participantComorbidities = config.includeComorbidities 
+      ? Array.from({ length: getRandomInt(0, 5) }, () => getRandomElement(comorbidities))
       : [];
     
     // Remove duplicates from comorbidities
     const uniqueComorbidities = [...new Set(participantComorbidities)];
     
-    // Generate 3-10 measurements for each participant
-    const numMeasurements = getRandomInt(3, 10);
+    // Determine the number of measurements based on frequency setting
+    const numMeasurements = getRandomInt(measurementCount.min, measurementCount.max);
     const measurements = [];
     
     // Admission date
-    const admissionDate = getRandomDate(startDate, endDate);
+    const admissionDate = getRandomDate(config.startDate, config.endDate);
+    
+    // Assign consistent time patterns for this participant
+    let patientTimePatterns;
+    if (config.timePatterns === 'realistic') {
+      // For realistic patterns, link the patterns to the outcome
+      if (outcome === "Improved" || outcome === "Discharged") {
+        patientTimePatterns = {
+          bloodPressure: "improving",
+          heartRate: "improving",
+          temperature: "improving",
+          oxygenSaturation: "improving",
+          pain: "improving"
+        };
+      } else if (outcome === "Deteriorated" || outcome === "Deceased") {
+        patientTimePatterns = {
+          bloodPressure: "deteriorating",
+          heartRate: "deteriorating",
+          temperature: "deteriorating",
+          oxygenSaturation: "deteriorating",
+          pain: "deteriorating"
+        };
+      } else {
+        patientTimePatterns = {
+          bloodPressure: "stable",
+          heartRate: "stable",
+          temperature: "stable",
+          oxygenSaturation: "stable",
+          pain: "stable"
+        };
+      }
+    } else {
+      // For random patterns, assign randomly to each vital sign
+      patientTimePatterns = {
+        bloodPressure: getRandomElement(timePatterns),
+        heartRate: getRandomElement(timePatterns),
+        temperature: getRandomElement(timePatterns),
+        oxygenSaturation: getRandomElement(timePatterns),
+        pain: getRandomElement(timePatterns)
+      };
+    }
+    
+    // Base values for this patient - will vary over time according to the pattern
+    const baseBloodPressureSystolic = getRandomInt(110, 160);
+    const baseBloodPressureDiastolic = getRandomInt(60, 100);
+    const baseHeartRate = getRandomInt(60, 100);
+    const baseTemperature = getRandomNumber(36.1, 38.5);
+    const baseOxygenSaturation = getRandomInt(88, 100);
+    const basePain = getRandomInt(0, 10);
     
     for (let j = 0; j < numMeasurements; j++) {
       // Create dates that progress from admission date
       const measurementDate = new Date(admissionDate);
       measurementDate.setDate(admissionDate.getDate() + j);
       
-      // Base values - will vary slightly for each measurement to simulate progression
-      const baseBloodPressureSystolic = getRandomInt(100, 160);
-      const baseBloodPressureDiastolic = getRandomInt(60, 100);
-      const baseHeartRate = getRandomInt(60, 100);
-      const baseTemperature = getRandomNumber(36.1, 38.5);
-      const baseOxygenSaturation = getRandomInt(88, 100);
-      const basePain = getRandomInt(0, 10);
+      // Generate values according to the assigned pattern
+      const bloodPressureSystolic = Math.round(
+        generateTimeSeriesValue(baseBloodPressureSystolic, j, numMeasurements, patientTimePatterns.bloodPressure, variabilityFactor)
+      );
       
-      // Add some variation based on day from admission
-      const variation = j / numMeasurements;
+      const bloodPressureDiastolic = Math.round(
+        generateTimeSeriesValue(baseBloodPressureDiastolic, j, numMeasurements, patientTimePatterns.bloodPressure, variabilityFactor)
+      );
+      
+      const heartRate = Math.round(
+        generateTimeSeriesValue(baseHeartRate, j, numMeasurements, patientTimePatterns.heartRate, variabilityFactor)
+      );
+      
+      const temperature = parseFloat(
+        generateTimeSeriesValue(baseTemperature, j, numMeasurements, patientTimePatterns.temperature, variabilityFactor).toFixed(1)
+      );
+      
+      const oxygenSaturation = Math.min(100, Math.round(
+        generateTimeSeriesValue(baseOxygenSaturation, j, numMeasurements, patientTimePatterns.oxygenSaturation, variabilityFactor * 0.5)
+      ));
+      
+      const pain = Math.max(0, Math.min(10, Math.round(
+        generateTimeSeriesValue(basePain, j, numMeasurements, patientTimePatterns.pain, variabilityFactor)
+      )));
       
       // Introduce missing data if enabled
-      const hasMissingData = includeMissingData;
+      const hasMissingData = config.includeMissingData;
+      const missingProbability = config.missingDataProbability || 0.05;
       
       measurements.push({
         date: formatDate(measurementDate),
-        bloodPressureSystolic: hasMissingData && shouldBeMissing(0.05) ? null : Math.round(baseBloodPressureSystolic * (1 - variation * 0.1)),
-        bloodPressureDiastolic: hasMissingData && shouldBeMissing(0.05) ? null : Math.round(baseBloodPressureDiastolic * (1 - variation * 0.1)),
-        heartRate: hasMissingData && shouldBeMissing(0.05) ? null : Math.round(baseHeartRate * (1 - variation * 0.05)),
-        temperature: hasMissingData && shouldBeMissing(0.05) ? null : parseFloat((baseTemperature * (1 - variation * 0.03)).toFixed(1)),
-        oxygenSaturation: hasMissingData && shouldBeMissing(0.05) ? null : Math.min(100, Math.round(baseOxygenSaturation * (1 + variation * 0.05))),
-        pain: hasMissingData && shouldBeMissing(0.05) ? null : Math.max(0, Math.round(basePain * (1 - variation * 0.2))),
+        bloodPressureSystolic: hasMissingData && shouldBeMissing(missingProbability) ? null : bloodPressureSystolic,
+        bloodPressureDiastolic: hasMissingData && shouldBeMissing(missingProbability) ? null : bloodPressureDiastolic,
+        heartRate: hasMissingData && shouldBeMissing(missingProbability) ? null : heartRate,
+        temperature: hasMissingData && shouldBeMissing(missingProbability) ? null : temperature,
+        oxygenSaturation: hasMissingData && shouldBeMissing(missingProbability) ? null : oxygenSaturation,
+        pain: hasMissingData && shouldBeMissing(missingProbability) ? null : pain,
       });
     }
     
-    // Generate 1-3 treatments for each participant
-    const numTreatments = getRandomInt(1, 3);
+    // Generate 1-5 treatments for each participant
+    const numTreatments = getRandomInt(1, 5);
     const participantTreatments = [];
     
     for (let k = 0; k < numTreatments; k++) {
       const treatmentName = getRandomElement(treatments);
-      const startDate = getRandomDate(admissionDate, new Date(admissionDate.getTime() + 3 * 24 * 60 * 60 * 1000));
+      const startDate = getRandomDate(admissionDate, new Date(admissionDate.getTime() + 5 * 24 * 60 * 60 * 1000));
       
       // Some treatments are ongoing, some have end dates
       let endDate = null;
       if (Math.random() > 0.3) {
         const endDateObj = getRandomDate(
           new Date(startDate.getTime() + 1 * 24 * 60 * 60 * 1000),
-          new Date(startDate.getTime() + 14 * 24 * 60 * 60 * 1000)
+          new Date(startDate.getTime() + 21 * 24 * 60 * 60 * 1000)
         );
         endDate = formatDate(endDateObj);
       }
@@ -175,7 +335,7 @@ export const simulateData = (
     };
     
     // Add comorbidities if enabled
-    if (includeComorbidities) {
+    if (config.includeComorbidities) {
       participant.comorbidities = uniqueComorbidities;
     }
     

@@ -1,5 +1,6 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { simulateData } from "@/lib/dataSimulation";
+import { simulateData, SimulationConfig } from "@/lib/dataSimulation";
 
 export interface Participant {
   id: string;
@@ -13,12 +14,12 @@ export interface Participant {
   readmissionRisk: number;
   measurements: {
     date: string;
-    bloodPressureSystolic: number;
-    bloodPressureDiastolic: number;
-    heartRate: number;
-    temperature: number;
-    oxygenSaturation: number;
-    pain: number;
+    bloodPressureSystolic: number | null;
+    bloodPressureDiastolic: number | null;
+    heartRate: number | null;
+    temperature: number | null;
+    oxygenSaturation: number | null;
+    pain: number | null;
   }[];
   treatments: {
     name: string;
@@ -26,15 +27,8 @@ export interface Participant {
     endDate: string | null;
     effectiveness: number;
   }[];
+  comorbidities?: string[];
   [key: string]: any;
-}
-
-interface SimulationOptions {
-  numParticipants: number;
-  startDate: Date;
-  endDate: Date;
-  includeComorbidities: boolean;
-  includeMissingData: boolean;
 }
 
 interface DataContextType {
@@ -42,11 +36,14 @@ interface DataContextType {
   setData: React.Dispatch<React.SetStateAction<Participant[]>>;
   isDataLoaded: boolean;
   setIsDataLoaded: React.Dispatch<React.SetStateAction<boolean>>;
-  generateSimulatedData: (options: SimulationOptions) => void;
+  generateSimulatedData: (options: SimulationConfig) => void;
   clearData: () => void;
   importData: (data: Participant[]) => void;
-  simulationOptions: SimulationOptions;
-  setSimulationOptions: React.Dispatch<React.SetStateAction<SimulationOptions>>;
+  simulationOptions: SimulationConfig;
+  setSimulationOptions: React.Dispatch<React.SetStateAction<SimulationConfig>>;
+  getParticipantsByCondition: (condition: string) => Participant[];
+  getParticipantsByUnit: (unit: string) => Participant[];
+  getStatisticalSummary: () => any;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -67,7 +64,20 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     return storedData ? JSON.parse(storedData).length > 0 : false;
   });
   
-  const [simulationOptions, setSimulationOptions] = useState<SimulationOptions>(() => {
+  const defaultOptions: SimulationConfig = {
+    numParticipants: 50,
+    startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
+    endDate: new Date(),
+    includeComorbidities: true,
+    includeMissingData: false,
+    missingDataProbability: 0.05,
+    measurementFrequency: 'medium',
+    timePatterns: 'realistic',
+    dataVariability: 'medium',
+    outcomeDistribution: 'balanced'
+  };
+  
+  const [simulationOptions, setSimulationOptions] = useState<SimulationConfig>(() => {
     const storedOptions = localStorage.getItem(OPTIONS_STORAGE_KEY);
     if (storedOptions) {
       const parsedOptions = JSON.parse(storedOptions);
@@ -78,13 +88,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         endDate: new Date(parsedOptions.endDate)
       };
     }
-    return {
-      numParticipants: 50,
-      startDate: new Date(new Date().setFullYear(new Date().getFullYear() - 1)),
-      endDate: new Date(),
-      includeComorbidities: true,
-      includeMissingData: false
-    };
+    return defaultOptions;
   });
 
   // Persist data to localStorage whenever it changes
@@ -101,7 +105,7 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(OPTIONS_STORAGE_KEY, JSON.stringify(optionsToStore));
   }, [simulationOptions]);
 
-  const generateSimulatedData = (options: SimulationOptions) => {
+  const generateSimulatedData = (options: SimulationConfig) => {
     try {
       console.log("Generating simulated data with options:", options);
       
@@ -109,13 +113,11 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const startDate = options.startDate instanceof Date ? options.startDate : new Date(options.startDate);
       const endDate = options.endDate instanceof Date ? options.endDate : new Date(options.endDate);
       
-      const simulatedData = simulateData(
-        options.numParticipants,
+      const simulatedData = simulateData({
+        ...options,
         startDate,
-        endDate,
-        options.includeComorbidities,
-        options.includeMissingData
-      );
+        endDate
+      });
       
       console.log("Simulated data generated:", simulatedData.length, "participants");
       setData(simulatedData);
@@ -140,6 +142,77 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     setData(newData);
     setIsDataLoaded(true);
   };
+  
+  // Helper functions for data access patterns
+  const getParticipantsByCondition = (condition: string) => {
+    return data.filter(p => p.condition === condition);
+  };
+  
+  const getParticipantsByUnit = (unit: string) => {
+    return data.filter(p => p.unit === unit);
+  };
+  
+  // Calculate common statistical measures for the dataset
+  const getStatisticalSummary = () => {
+    if (data.length === 0) return null;
+    
+    const ages = data.map(p => p.age);
+    const riskScores = data.map(p => p.riskScore);
+    const lengthsOfStay = data.map(p => p.lengthOfStay);
+    
+    // Helper function to calculate mean
+    const mean = (arr: number[]) => arr.reduce((sum, val) => sum + val, 0) / arr.length;
+    
+    // Helper function to calculate standard deviation
+    const stdDev = (arr: number[], meanVal: number) => {
+      const squareDiffs = arr.map(value => Math.pow(value - meanVal, 2));
+      const avgSquareDiff = mean(squareDiffs);
+      return Math.sqrt(avgSquareDiff);
+    };
+    
+    const ageMean = mean(ages);
+    const ageStdDev = stdDev(ages, ageMean);
+    
+    const riskScoreMean = mean(riskScores);
+    const riskScoreStdDev = stdDev(riskScores, riskScoreMean);
+    
+    const losNean = mean(lengthsOfStay);
+    const losStdDev = stdDev(lengthsOfStay, losNean);
+    
+    return {
+      participantCount: data.length,
+      age: {
+        mean: ageMean,
+        stdDev: ageStdDev,
+        min: Math.min(...ages),
+        max: Math.max(...ages)
+      },
+      riskScore: {
+        mean: riskScoreMean,
+        stdDev: riskScoreStdDev,
+        min: Math.min(...riskScores),
+        max: Math.max(...riskScores)
+      },
+      lengthOfStay: {
+        mean: losNean,
+        stdDev: losStdDev,
+        min: Math.min(...lengthsOfStay),
+        max: Math.max(...lengthsOfStay)
+      },
+      conditionCounts: data.reduce((acc, p) => {
+        acc[p.condition] = (acc[p.condition] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      unitCounts: data.reduce((acc, p) => {
+        acc[p.unit] = (acc[p.unit] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      outcomeCounts: data.reduce((acc, p) => {
+        acc[p.outcome] = (acc[p.outcome] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>)
+    };
+  };
 
   return (
     <DataContext.Provider
@@ -153,6 +226,9 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         importData,
         simulationOptions,
         setSimulationOptions,
+        getParticipantsByCondition,
+        getParticipantsByUnit,
+        getStatisticalSummary
       }}
     >
       {children}

@@ -2,11 +2,27 @@
 import { useMemo } from "react";
 import { Participant } from "@/context/DataContext";
 
+interface TimeSeriesOptions {
+  selectedParticipantIds: string[];
+  compareToConditionMean?: boolean;
+  compareToUnitMean?: boolean;
+  showConfidenceBands?: boolean;
+  confidenceLevel?: number; // 0.95 for 95% confidence
+}
+
 export const useParticipantTimeSeriesData = (
   data: Participant[],
-  selectedParticipantIds: string[]
+  options: TimeSeriesOptions
 ) => {
   return useMemo(() => {
+    const { 
+      selectedParticipantIds,
+      compareToConditionMean = false,
+      compareToUnitMean = false,
+      showConfidenceBands = false,
+      confidenceLevel = 0.95
+    } = options;
+    
     if (!selectedParticipantIds.length) return [];
 
     // Get measurements from the selected participants
@@ -79,6 +95,86 @@ export const useParticipantTimeSeriesData = (
       });
     });
     
+    // Add comparison data if requested
+    if ((compareToConditionMean || compareToUnitMean) && selectedParticipants.length > 0) {
+      // Get reference participant for condition/unit
+      const referenceParticipant = selectedParticipants[0];
+      
+      // Get all participants that match the condition or unit
+      let comparisonGroup: Participant[] = [];
+      
+      if (compareToConditionMean) {
+        comparisonGroup = data.filter(p => 
+          p.condition === referenceParticipant.condition && 
+          !selectedParticipantIds.includes(p.id)
+        );
+      } else if (compareToUnitMean) {
+        comparisonGroup = data.filter(p => 
+          p.unit === referenceParticipant.unit && 
+          !selectedParticipantIds.includes(p.id)
+        );
+      }
+      
+      if (comparisonGroup.length > 0) {
+        // For each date, calculate mean values from the comparison group
+        dateMap.forEach((entry, dateStr) => {
+          // Find all measurements for this date from the comparison group
+          const measurementsForDate = comparisonGroup
+            .map(p => {
+              const measurement = p.measurements.find(m => 
+                new Date(m.date).toISOString().split('T')[0] === dateStr
+              );
+              return measurement || null;
+            })
+            .filter(m => m !== null) as any[];
+            
+          if (measurementsForDate.length > 0) {
+            // Calculate mean and standard deviation for each metric
+            const metrics = [
+              { key: 'systolic', source: 'bloodPressureSystolic' },
+              { key: 'diastolic', source: 'bloodPressureDiastolic' },
+              { key: 'heartRate', source: 'heartRate' },
+              { key: 'oxygenSaturation', source: 'oxygenSaturation' },
+              { key: 'temperature', source: 'temperature' }
+            ];
+            
+            metrics.forEach(({ key, source }) => {
+              const validValues = measurementsForDate
+                .map(m => m[source])
+                .filter(v => v !== null && v !== undefined) as number[];
+                
+              if (validValues.length > 0) {
+                // Calculate mean
+                const mean = validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
+                entry[`${key}_mean`] = mean;
+                
+                // Calculate standard deviation
+                if (validValues.length > 1 && showConfidenceBands) {
+                  const squaredDiffs = validValues.map(value => Math.pow(value - mean, 2));
+                  const variance = squaredDiffs.reduce((sum, val) => sum + val, 0) / (validValues.length - 1);
+                  const stdDev = Math.sqrt(variance);
+                  
+                  // Calculate confidence interval (using t-distribution would be more accurate for small samples)
+                  // Here we use a simple approximation
+                  const z = 1.96; // For 95% confidence
+                  const marginOfError = z * stdDev / Math.sqrt(validValues.length);
+                  
+                  entry[`${key}_upper`] = mean + marginOfError;
+                  entry[`${key}_lower`] = mean - marginOfError;
+                }
+              } else {
+                entry[`${key}_mean`] = null;
+                if (showConfidenceBands) {
+                  entry[`${key}_upper`] = null;
+                  entry[`${key}_lower`] = null;
+                }
+              }
+            });
+          }
+        });
+      }
+    }
+    
     // Convert the map to an array and sort by date
     const allMeasurements = Array.from(dateMap.values());
     allMeasurements.sort((a, b) => 
@@ -86,5 +182,5 @@ export const useParticipantTimeSeriesData = (
     );
 
     return allMeasurements;
-  }, [data, selectedParticipantIds]);
+  }, [data, options]);
 };

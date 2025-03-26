@@ -7,7 +7,9 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend
+  Legend,
+  ResponsiveContainer,
+  TooltipProps
 } from "recharts";
 import ChartContainer from "./ChartContainer";
 
@@ -23,8 +25,14 @@ interface LineChartProps {
   valueFormatter?: (value: number) => string;
   title?: string;
   height?: number;
-  customTooltip?: React.ComponentType<any>;
+  customTooltip?: React.ComponentType<TooltipProps<any, any>>;
   customTooltipParams?: Record<string, any>;
+  showConfidenceBands?: boolean;
+  confidenceBandCategories?: {
+    main: string;
+    upper: string;
+    lower: string;
+  }[];
 }
 
 export const LineChart: React.FC<LineChartProps> = ({
@@ -36,7 +44,9 @@ export const LineChart: React.FC<LineChartProps> = ({
   title,
   height,
   customTooltip,
-  customTooltipParams = {}
+  customTooltipParams = {},
+  showConfidenceBands = false,
+  confidenceBandCategories = []
 }) => {
   return (
     <ChartContainer title={title} height={height}>
@@ -44,12 +54,20 @@ export const LineChart: React.FC<LineChartProps> = ({
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey={index} />
         <YAxis tickFormatter={valueFormatter} />
+        
+        {/* Use custom tooltip if provided, otherwise use default */}
         {customTooltip ? (
-          <Tooltip content={<customTooltip formatter={valueFormatter} {...customTooltipParams} />} />
+          <Tooltip content={(props) => {
+            const CustomTooltipComponent = customTooltip;
+            return <CustomTooltipComponent {...props} formatter={valueFormatter} {...customTooltipParams} />;
+          }} />
         ) : (
           <Tooltip formatter={valueFormatter} />
         )}
+        
         <Legend />
+        
+        {/* Regular line series */}
         {categories.map((category, i) => (
           <Line
             key={category}
@@ -60,6 +78,38 @@ export const LineChart: React.FC<LineChartProps> = ({
             name={category}
             connectNulls={true}
           />
+        ))}
+        
+        {/* Confidence bands if enabled */}
+        {showConfidenceBands && confidenceBandCategories.map((bandSet, i) => (
+          <React.Fragment key={`band-${i}`}>
+            <Line
+              type="monotone"
+              dataKey={bandSet.main}
+              stroke={colors[i % colors.length]}
+              strokeWidth={2}
+              activeDot={{ r: 8 }}
+              connectNulls={true}
+            />
+            <Line
+              type="monotone"
+              dataKey={bandSet.upper}
+              stroke={colors[i % colors.length]}
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              activeDot={false}
+              connectNulls={true}
+            />
+            <Line
+              type="monotone"
+              dataKey={bandSet.lower}
+              stroke={colors[i % colors.length]}
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              activeDot={false}
+              connectNulls={true}
+            />
+          </React.Fragment>
         ))}
       </RechartsLineChart>
     </ChartContainer>
