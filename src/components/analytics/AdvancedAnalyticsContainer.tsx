@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useData } from "@/context/DataContext";
 import { 
   Card, 
@@ -19,18 +19,79 @@ import ClusteringAnalysis from "./ClusteringAnalysis";
 import RegressionAnalysis from "./RegressionAnalysis";
 import { RegressionResult, multipleLinearRegression } from "@/utils/analyticsUtils";
 
+// Basic variable options that are always available
 export const variableOptions = [
-  { value: "age", label: "Age" },
-  { value: "riskScore", label: "Risk Score" },
-  { value: "lengthOfStay", label: "Length of Stay" },
-  { value: "readmissionRisk", label: "Readmission Risk" }
+  { value: "age", label: "Age", group: "Basic" },
+  { value: "riskScore", label: "Risk Score", group: "Basic" },
+  { value: "lengthOfStay", label: "Length of Stay", group: "Basic" },
+  { value: "readmissionRisk", label: "Readmission Risk", group: "Basic" }
 ];
+
+// Deep phenotyping variable options
+export const deepPhenotypeVariableOptions = [
+  // Demographics
+  { value: "deepPhenotype.qualityOfLifeScore", label: "Quality of Life Score", group: "Patient-Reported" },
+  { value: "deepPhenotype.patientSatisfactionScore", label: "Patient Satisfaction", group: "Patient-Reported" },
+  { value: "deepPhenotype.symptomBurden", label: "Symptom Burden", group: "Patient-Reported" },
+  { value: "deepPhenotype.adlScore", label: "ADL Score", group: "Patient-Reported" },
+  { value: "deepPhenotype.mentalHealthScore", label: "Mental Health Score", group: "Patient-Reported" },
+  
+  // Healthcare utilization
+  { value: "deepPhenotype.edVisitsPerYear", label: "ED Visits Per Year", group: "Healthcare Utilization" },
+  { value: "deepPhenotype.hospitalizationsPerYear", label: "Hospitalizations Per Year", group: "Healthcare Utilization" },
+  { value: "deepPhenotype.primaryCareVisitsPerYear", label: "PCP Visits Per Year", group: "Healthcare Utilization" },
+  
+  // Treatment
+  { value: "deepPhenotype.medicationAdherenceRate", label: "Medication Adherence", group: "Treatment" },
+  { value: "deepPhenotype.adverseDrugEventRisk", label: "Adverse Drug Event Risk", group: "Treatment" },
+  { value: "deepPhenotype.treatmentCompletionRate", label: "Treatment Completion Rate", group: "Treatment" },
+  
+  // Cost & Resource measures
+  { value: "deepPhenotype.totalCostOfCare", label: "Total Cost of Care", group: "Cost & Resources" },
+  { value: "deepPhenotype.costPerEpisode", label: "Cost Per Episode", group: "Cost & Resources" },
+  
+  // Longitudinal measures
+  { value: "deepPhenotype.functionalStatus.physicalFunction", label: "Physical Function", group: "Functional Status" },
+  { value: "deepPhenotype.functionalStatus.mobility", label: "Mobility", group: "Functional Status" },
+  { value: "deepPhenotype.functionalStatus.adlIndependence", label: "ADL Independence", group: "Functional Status" },
+  { value: "deepPhenotype.functionalStatus.cognitiveFunction", label: "Cognitive Function", group: "Functional Status" },
+  { value: "deepPhenotype.functionalStatus.frailtyIndex", label: "Frailty Index", group: "Functional Status" },
+  
+  // Disease specific measures
+  { value: "deepPhenotype.diseaseSpecificMeasures.hba1c", label: "HbA1c", group: "Disease-Specific" },
+  { value: "deepPhenotype.diseaseSpecificMeasures.lipidProfileLDL", label: "LDL Cholesterol", group: "Disease-Specific" },
+  { value: "deepPhenotype.diseaseSpecificMeasures.lipidProfileHDL", label: "HDL Cholesterol", group: "Disease-Specific" },
+  { value: "deepPhenotype.diseaseSpecificMeasures.depressionPHQ9", label: "Depression PHQ-9", group: "Disease-Specific" }
+];
+
+// Helper to safely access nested properties
+const getNestedValue = (obj: any, path: string) => {
+  try {
+    return path.split('.').reduce((prev, curr) => prev && prev[curr], obj);
+  } catch (e) {
+    return undefined;
+  }
+};
 
 const AdvancedAnalyticsContainer = () => {
   const { data } = useData();
   const { toast } = useToast();
   const [analysisType, setAnalysisType] = useState("correlation");
   const [results, setResults] = useState<any>(null);
+  
+  // Check if deep phenotyping data is available
+  const hasDeepPhenotypingData = data.some(participant => participant.deepPhenotype);
+  
+  // Combine variable options based on data availability
+  const [allVariableOptions, setAllVariableOptions] = useState(variableOptions);
+  
+  useEffect(() => {
+    if (hasDeepPhenotypingData) {
+      setAllVariableOptions([...variableOptions, ...deepPhenotypeVariableOptions]);
+    } else {
+      setAllVariableOptions(variableOptions);
+    }
+  }, [hasDeepPhenotypingData]);
   
   // Correlation state
   const [xVariable, setXVariable] = useState("age");
@@ -55,6 +116,20 @@ const AdvancedAnalyticsContainer = () => {
   };
   
   const runAnalysis = () => {
+    // Transform the data if needed for deep phenotype variables
+    const transformedData = data.map(participant => {
+      const transformedParticipant: Record<string, any> = { ...participant };
+      
+      // For each deep phenotype variable that might be selected, flatten it
+      deepPhenotypeVariableOptions.forEach(option => {
+        if (option.value.includes('deepPhenotype.')) {
+          transformedParticipant[option.value] = getNestedValue(participant, option.value);
+        }
+      });
+      
+      return transformedParticipant;
+    });
+    
     if (analysisType === "correlation") {
       setResults({
         type: "correlation",
@@ -91,7 +166,7 @@ const AdvancedAnalyticsContainer = () => {
       }
       
       try {
-        const regressionResult = multipleLinearRegression(data, outcomeVariable, selectedPredictors);
+        const regressionResult = multipleLinearRegression(transformedData, outcomeVariable, selectedPredictors);
         setRegressionResults(regressionResult);
         
         setResults({
@@ -139,7 +214,7 @@ const AdvancedAnalyticsContainer = () => {
                 setXVariable={setXVariable}
                 yVariable={yVariable}
                 setYVariable={setYVariable}
-                variableOptions={variableOptions}
+                variableOptions={allVariableOptions}
               />
             )}
             
@@ -151,7 +226,7 @@ const AdvancedAnalyticsContainer = () => {
                 setClusterVariable2={setClusterVariable2}
                 numClusters={numClusters}
                 setNumClusters={setNumClusters}
-                variableOptions={variableOptions}
+                variableOptions={allVariableOptions}
               />
             )}
             
@@ -161,7 +236,7 @@ const AdvancedAnalyticsContainer = () => {
                 setOutcomeVariable={setOutcomeVariable}
                 selectedPredictors={selectedPredictors}
                 handlePredictorToggle={handlePredictorToggle}
-                variableOptions={variableOptions}
+                variableOptions={allVariableOptions}
               />
             )}
           </div>
@@ -178,7 +253,7 @@ const AdvancedAnalyticsContainer = () => {
                 data={data}
                 xVariable={results.xVariable}
                 yVariable={results.yVariable}
-                variableOptions={variableOptions}
+                variableOptions={allVariableOptions}
               />
             )}
             
@@ -188,7 +263,7 @@ const AdvancedAnalyticsContainer = () => {
                 variable1={results.variable1}
                 variable2={results.variable2}
                 numClusters={results.numClusters}
-                variableOptions={variableOptions}
+                variableOptions={allVariableOptions}
               />
             )}
             
@@ -197,7 +272,7 @@ const AdvancedAnalyticsContainer = () => {
                 regressionResults={regressionResults}
                 outcomeVariable={outcomeVariable}
                 selectedPredictors={selectedPredictors}
-                variableOptions={variableOptions}
+                variableOptions={allVariableOptions}
               />
             )}
           </div>
