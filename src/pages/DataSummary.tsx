@@ -1,4 +1,4 @@
-
+import { useState } from "react";
 import { useData } from "@/context/DataContext";
 import { 
   Card, 
@@ -8,18 +8,34 @@ import {
   CardTitle 
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import NoDataMessage from "@/components/NoDataMessage";
 import MissingnessAnalysis from "@/components/MissingnessAnalysis";
 import TemporalTrends from "@/components/TemporalTrends";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
+
+// Helper to safely access nested properties
+const getNestedValue = (obj: any, path: string) => {
+  try {
+    return path.split('.').reduce((prev, curr) => prev && prev[curr], obj);
+  } catch (e) {
+    return undefined;
+  }
+};
 
 const DataSummary = () => {
   const { data, isDataLoaded } = useData();
+  const [selectedCategory, setSelectedCategory] = useState("basic");
 
   if (!isDataLoaded) {
     return <NoDataMessage />;
   }
 
-  // Calculate summary statistics
+  // Check if we have deep phenotype data
+  const hasDeepPhenotype = data.some(participant => participant.deepPhenotype);
+
+  // Calculate summary statistics for basic variables
   const totalParticipants = data.length;
   
   // Count by unit
@@ -72,6 +88,65 @@ const DataSummary = () => {
     data.reduce((sum, p) => sum + p.treatments.length, 0) / data.length
   );
 
+  // Deep phenotype category calculations
+  const calculateDeepPhenotypeStats = (path: string) => {
+    const values = data
+      .map(p => getNestedValue(p.deepPhenotype, path))
+      .filter(val => val !== undefined && val !== null);
+    
+    if (values.length === 0) return null;
+    
+    // If the values are numeric
+    if (typeof values[0] === 'number') {
+      const numericValues = values as number[];
+      return {
+        count: numericValues.length,
+        min: Math.min(...numericValues),
+        max: Math.max(...numericValues),
+        avg: Math.round((numericValues.reduce((sum, val) => sum + val, 0) / numericValues.length) * 100) / 100,
+        type: 'numeric'
+      };
+    } 
+    
+    // If the values are categorical
+    if (typeof values[0] === 'string') {
+      const categoricalValues = values as string[];
+      const categories = categoricalValues.reduce((acc, val) => {
+        acc[val] = (acc[val] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      return {
+        count: categoricalValues.length,
+        categories,
+        type: 'categorical'
+      };
+    }
+    
+    return {
+      count: values.length,
+      type: 'unknown'
+    };
+  };
+  
+  // Define deep phenotype categories
+  const deepPhenotypeCategories = [
+    { id: "patientReported", label: "Patient-Reported Outcomes", 
+      variables: ["qualityOfLifeScore", "patientSatisfactionScore", "symptomBurden", "adlScore", "mentalHealthScore"] },
+    { id: "healthcare", label: "Healthcare Utilization", 
+      variables: ["edVisitsPerYear", "hospitalizationsPerYear", "primaryCareVisitsPerYear"] },
+    { id: "treatment", label: "Treatment & Medication", 
+      variables: ["medicationAdherenceRate", "adverseDrugEventRisk", "treatmentCompletionRate"] },
+    { id: "functionalStatus", label: "Functional Status", 
+      variables: ["functionalStatus.physicalFunction", "functionalStatus.mobility", "functionalStatus.adlIndependence", 
+                 "functionalStatus.cognitiveFunction", "functionalStatus.frailtyIndex"] },
+    { id: "diseaseSpecific", label: "Disease-Specific Measures", 
+      variables: ["diseaseSpecificMeasures.hba1c", "diseaseSpecificMeasures.lipidProfileLDL", 
+                 "diseaseSpecificMeasures.lipidProfileHDL", "diseaseSpecificMeasures.depressionPHQ9"] },
+    { id: "cost", label: "Cost & Resources", 
+      variables: ["totalCostOfCare", "costPerEpisode"] }
+  ];
+  
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Data Summary</h1>
@@ -117,10 +192,13 @@ const DataSummary = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="demographics">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="demographics" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-1 md:grid-cols-4">
           <TabsTrigger value="demographics">Demographics</TabsTrigger>
           <TabsTrigger value="clinical">Clinical</TabsTrigger>
+          {hasDeepPhenotype && (
+            <TabsTrigger value="deepPhenotype">Deep Phenotyping</TabsTrigger>
+          )}
           <TabsTrigger value="advanced">Advanced Analysis</TabsTrigger>
         </TabsList>
 
@@ -236,6 +314,95 @@ const DataSummary = () => {
           </div>
         </TabsContent>
         
+        {hasDeepPhenotype && (
+          <TabsContent value="deepPhenotype">
+            <Card>
+              <CardHeader>
+                <CardTitle>Deep Phenotype Data Summary</CardTitle>
+                <CardDescription>
+                  Explore enhanced patient phenotyping variables across multiple domains
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Accordion type="single" collapsible className="w-full">
+                  {deepPhenotypeCategories.map((category) => {
+                    const availableVars = category.variables.filter(v => 
+                      data.some(p => p.deepPhenotype && getNestedValue(p.deepPhenotype, v) !== undefined)
+                    );
+                    
+                    if (availableVars.length === 0) return null;
+                    
+                    return (
+                      <AccordionItem key={category.id} value={category.id}>
+                        <AccordionTrigger className="hover:bg-gray-50 px-4">
+                          {category.label}
+                        </AccordionTrigger>
+                        <AccordionContent className="px-4">
+                          <div className="space-y-4">
+                            {availableVars.map((varPath) => {
+                              const stats = calculateDeepPhenotypeStats(varPath);
+                              if (!stats) return null;
+                              
+                              // Get the variable label (last part of the path)
+                              const varLabel = varPath.split('.').pop() || varPath;
+                              const formattedLabel = varLabel
+                                .replace(/([A-Z])/g, ' $1')
+                                .replace(/^./, str => str.toUpperCase());
+                              
+                              return (
+                                <div key={varPath} className="border rounded-md p-4">
+                                  <h4 className="font-medium mb-2">{formattedLabel}</h4>
+                                  {stats.type === 'numeric' && (
+                                    <div className="grid grid-cols-3 gap-2 text-sm">
+                                      <div>
+                                        <p className="text-gray-500">Min</p>
+                                        <p className="font-medium">{stats.min}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-gray-500">Average</p>
+                                        <p className="font-medium">{stats.avg}</p>
+                                      </div>
+                                      <div>
+                                        <p className="text-gray-500">Max</p>
+                                        <p className="font-medium">{stats.max}</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {stats.type === 'categorical' && (
+                                    <div className="space-y-2">
+                                      {Object.entries(stats.categories).map(([value, count]) => (
+                                        <div key={value} className="flex justify-between items-center">
+                                          <span>{value}</span>
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
+                                              <div 
+                                                className="h-full bg-indigo-500 rounded-full" 
+                                                style={{ width: `${(count / stats.count) * 100}%` }}
+                                              />
+                                            </div>
+                                            <span className="text-xs font-medium">
+                                              {Math.round((count / stats.count) * 100)}%
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+        
         <TabsContent value="advanced">
           <div className="space-y-6">
             <MissingnessAnalysis />
@@ -276,6 +443,16 @@ const DataSummary = () => {
               </ul>
             </div>
           </div>
+          
+          {hasDeepPhenotype && (
+            <Alert className="mt-4">
+              <InfoIcon className="h-4 w-4" />
+              <AlertTitle>Deep Phenotyping Data Available</AlertTitle>
+              <AlertDescription>
+                This dataset includes enhanced patient phenotyping data. Go to the "Deep Phenotyping" tab to explore these variables.
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
     </div>
