@@ -7,6 +7,35 @@ interface ReportDemographicsSectionProps {
 }
 
 const ReportDemographicsSection: React.FC<ReportDemographicsSectionProps> = ({ data }) => {
+  // Ensure we have valid age data for calculations
+  const validAges = data.map(p => p.age).filter(age => age !== undefined && age !== null);
+  
+  // Calculate age statistics
+  const calculateAgeStats = () => {
+    if (validAges.length === 0) return { min: "N/A", max: "N/A", avg: "N/A" };
+    
+    const min = Math.min(...validAges);
+    const max = Math.max(...validAges);
+    const avg = validAges.reduce((sum, age) => sum + age, 0) / validAges.length;
+    
+    return {
+      min: min.toString(),
+      max: max.toString(),
+      avg: avg.toFixed(1)
+    };
+  };
+  
+  const ageStats = calculateAgeStats();
+  
+  // Calculate gender distribution
+  const genderCounts: Record<string, number> = {};
+  
+  data.forEach(p => {
+    if (p.gender) {
+      genderCounts[p.gender] = (genderCounts[p.gender] || 0) + 1;
+    }
+  });
+  
   return (
     <Card className="print:shadow-none print:border-0">
       <CardHeader>
@@ -18,10 +47,10 @@ const ReportDemographicsSection: React.FC<ReportDemographicsSectionProps> = ({ d
             <h3 className="font-medium">Age Distribution</h3>
             <div className="mt-2">
               <p className="text-sm">
-                Age Range: {Math.min(...data.map(p => p.age))} - {Math.max(...data.map(p => p.age))} years
+                Age Range: {ageStats.min} - {ageStats.max} years
               </p>
               <p className="text-sm">
-                Average Age: {Math.round(data.reduce((sum, p) => sum + p.age, 0) / data.length)} years
+                Average Age: {ageStats.avg} years
               </p>
             </div>
           </div>
@@ -29,10 +58,7 @@ const ReportDemographicsSection: React.FC<ReportDemographicsSectionProps> = ({ d
           <div>
             <h3 className="font-medium">Gender Distribution</h3>
             <div className="mt-2 space-y-1 text-sm">
-              {Object.entries(data.reduce((acc, p) => {
-                acc[p.gender] = (acc[p.gender] || 0) + 1;
-                return acc;
-              }, {} as Record<string, number>)).map(([gender, count]) => (
+              {Object.entries(genderCounts).map(([gender, count]) => (
                 <p key={gender}>
                   {gender}: {count} ({Math.round((count / data.length) * 100)}%)
                 </p>
