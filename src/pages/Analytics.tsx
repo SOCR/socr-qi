@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useData } from "@/context/DataContext";
 import { 
   Card, 
@@ -13,45 +13,25 @@ import NoDataMessage from "@/components/NoDataMessage";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { PieChart, BarChart } from "@/components/ui/chart";
 import QualityScoreTrend from "@/components/QualityScoreTrend";
-
-// Simple analytics functions
-const calculateCorrelation = (x: number[], y: number[]): number => {
-  const n = x.length;
-  if (n === 0) return 0;
-  
-  const sumX = x.reduce((a, b) => a + b, 0);
-  const sumY = y.reduce((a, b) => a + b, 0);
-  const sumXY = x.reduce((acc, val, i) => acc + val * y[i], 0);
-  const sumXSq = x.reduce((acc, val) => acc + val * val, 0);
-  const sumYSq = y.reduce((acc, val) => acc + val * val, 0);
-  
-  const numerator = n * sumXY - sumX * sumY;
-  const denominator = Math.sqrt((n * sumXSq - sumX * sumX) * (n * sumYSq - sumY * sumY));
-  
-  return denominator === 0 ? 0 : numerator / denominator;
-};
-
-// Simple linear regression
-const linearRegression = (x: number[], y: number[]) => {
-  const n = x.length;
-  if (n === 0) return { slope: 0, intercept: 0 };
-  
-  const sumX = x.reduce((a, b) => a + b, 0);
-  const sumY = y.reduce((a, b) => a + b, 0);
-  const sumXY = x.reduce((acc, val, i) => acc + val * y[i], 0);
-  const sumXSq = x.reduce((acc, val) => acc + val * val, 0);
-  
-  const slope = (n * sumXY - sumX * sumY) / (n * sumXSq - sumX * sumX);
-  const intercept = (sumY - slope * sumX) / n;
-  
-  return { slope, intercept };
-};
+import CustomRegressionControls from "@/components/analytics/CustomRegressionControls";
+import CustomRiskFactorAnalysis from "@/components/analytics/CustomRiskFactorAnalysis";
+import EnhancedQualityMetrics from "@/components/analytics/EnhancedQualityMetrics";
+import AdvancedAnalyticsContainer from "@/components/analytics/AdvancedAnalyticsContainer";
+import { calculateCorrelation, linearRegression } from "@/utils/analyticsUtils";
 
 const Analytics = () => {
   const { data, isDataLoaded } = useData();
   const [analysisResults, setAnalysisResults] = useState<any>(null);
   const [riskFactorsResults, setRiskFactorsResults] = useState<any>(null);
   const [qualityMetrics, setQualityMetrics] = useState<any>(null);
+  const [hasDeepPhenotypingData, setHasDeepPhenotypingData] = useState(false);
+  
+  useEffect(() => {
+    // Check if deep phenotyping data is available
+    if (isDataLoaded && data.length > 0) {
+      setHasDeepPhenotypingData(data.some(participant => participant.deepPhenotype));
+    }
+  }, [data, isDataLoaded]);
   
   if (!isDataLoaded) {
     return <NoDataMessage />;
@@ -199,6 +179,8 @@ const Analytics = () => {
           <TabsTrigger value="statistics">Statistical Analysis</TabsTrigger>
           <TabsTrigger value="riskfactors">Risk Factors</TabsTrigger>
           <TabsTrigger value="quality">Quality Metrics</TabsTrigger>
+          <TabsTrigger value="custom">Custom Analysis</TabsTrigger>
+          <TabsTrigger value="advanced">Advanced Analytics</TabsTrigger>
         </TabsList>
         
         <TabsContent value="statistics" className="space-y-4">
@@ -267,14 +249,19 @@ const Analytics = () => {
               )}
             </CardContent>
           </Card>
+          
+          <CustomRegressionControls 
+            data={data}
+            hasDeepPhenotypingData={hasDeepPhenotypingData}
+          />
         </TabsContent>
         
         <TabsContent value="riskfactors" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Risk Factor Analysis</CardTitle>
+              <CardTitle>Basic Risk Factor Analysis</CardTitle>
               <CardDescription>
-                Analyze the relationship between risk factors and patient outcomes
+                Analyze the relationship between risk scores and patient outcomes
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -339,18 +326,23 @@ const Analytics = () => {
               )}
             </CardContent>
           </Card>
+          
+          <CustomRiskFactorAnalysis 
+            data={data}
+            hasDeepPhenotypingData={hasDeepPhenotypingData}
+          />
         </TabsContent>
         
         <TabsContent value="quality" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Quality Improvement Metrics</CardTitle>
+              <CardTitle>Basic Quality Metrics</CardTitle>
               <CardDescription>
-                Measure and analyze healthcare quality improvement indicators
+                Calculate standard quality improvement indicators
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button onClick={calculateQualityMetrics}>Calculate QI Metrics</Button>
+              <Button onClick={calculateQualityMetrics}>Calculate Basic QI Metrics</Button>
 
               {qualityMetrics && (
                 <div className="mt-6 space-y-6">
@@ -408,6 +400,37 @@ const Analytics = () => {
               )}
             </CardContent>
           </Card>
+          
+          <EnhancedQualityMetrics 
+            data={data}
+            hasDeepPhenotypingData={hasDeepPhenotypingData}
+          />
+        </TabsContent>
+        
+        <TabsContent value="custom" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Custom Statistical Modeling</CardTitle>
+              <CardDescription>
+                Build custom statistical models using any available variables
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p>
+                Select specific variables for regression analysis from the options below.
+                You can choose from all available variables including deep phenotype measures when available.
+              </p>
+              
+              <CustomRegressionControls 
+                data={data}
+                hasDeepPhenotypingData={hasDeepPhenotypingData}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="advanced" className="space-y-4">
+          <AdvancedAnalyticsContainer />
         </TabsContent>
       </Tabs>
     </div>

@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useData } from "@/context/DataContext";
 import { 
   Card, 
@@ -20,7 +19,8 @@ import {
   Printer, 
   Download, 
   BarChart as BarChartIcon, 
-  PieChart as PieChartIcon 
+  PieChart as PieChartIcon, 
+  Activity 
 } from "lucide-react";
 import { 
   Select,
@@ -29,6 +29,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const Reports = () => {
   const { data, isDataLoaded } = useData();
@@ -40,9 +47,24 @@ const Reports = () => {
     outcomes: true,
     visualizations: true,
     analytics: true,
+    deepPhenotyping: true
   });
   const [exportFormat, setExportFormat] = useState<"pdf" | "csv">("pdf");
   const [isExporting, setIsExporting] = useState(false);
+  const [hasDeepPhenotypingData, setHasDeepPhenotypingData] = useState(false);
+  const [selectedDeepPhenotypeMetrics, setSelectedDeepPhenotypeMetrics] = useState<string[]>([
+    "qualityOfLifeScore",
+    "patientSatisfactionScore",
+    "symptomBurden",
+    "functionalStatus"
+  ]);
+
+  useEffect(() => {
+    // Check if deep phenotyping data is available
+    if (isDataLoaded && data.length > 0) {
+      setHasDeepPhenotypingData(data.some(participant => participant.deepPhenotype));
+    }
+  }, [data, isDataLoaded]);
 
   if (!isDataLoaded) {
     return <NoDataMessage />;
@@ -55,24 +77,88 @@ const Reports = () => {
     }));
   };
 
+  const handleDeepPhenotypeMetricToggle = (metric: string) => {
+    if (selectedDeepPhenotypeMetrics.includes(metric)) {
+      setSelectedDeepPhenotypeMetrics(selectedDeepPhenotypeMetrics.filter(m => m !== metric));
+    } else {
+      setSelectedDeepPhenotypeMetrics([...selectedDeepPhenotypeMetrics, metric]);
+    }
+  };
+
   const generateReport = async () => {
     setIsExporting(true);
     try {
       if (exportFormat === "pdf") {
         await exportToPDF("report-content", "SOCR-QI_Report.pdf");
       } else {
-        // For CSV export, we'll create a simplified dataset of patient outcomes
-        const csvData = data.map(patient => ({
-          id: patient.id,
-          gender: patient.gender,
-          age: patient.age,
-          condition: patient.condition,
-          unit: patient.unit,
-          riskScore: patient.riskScore,
-          lengthOfStay: patient.lengthOfStay,
-          readmissionRisk: patient.readmissionRisk,
-          outcome: patient.outcome
-        }));
+        // For CSV export, we'll create a simplified dataset including deep phenotyping if available
+        let csvData;
+        
+        if (hasDeepPhenotypingData) {
+          csvData = data.map(patient => {
+            const baseData = {
+              id: patient.id,
+              gender: patient.gender,
+              age: patient.age,
+              condition: patient.condition,
+              unit: patient.unit,
+              riskScore: patient.riskScore,
+              lengthOfStay: patient.lengthOfStay,
+              readmissionRisk: patient.readmissionRisk,
+              outcome: patient.outcome
+            };
+            
+            // Add deep phenotype data if available
+            if (patient.deepPhenotype) {
+              const deepData: Record<string, any> = {};
+              
+              if (selectedDeepPhenotypeMetrics.includes('qualityOfLifeScore')) {
+                deepData.qualityOfLifeScore = patient.deepPhenotype.qualityOfLifeScore;
+              }
+              
+              if (selectedDeepPhenotypeMetrics.includes('patientSatisfactionScore')) {
+                deepData.patientSatisfactionScore = patient.deepPhenotype.patientSatisfactionScore;
+              }
+              
+              if (selectedDeepPhenotypeMetrics.includes('symptomBurden')) {
+                deepData.symptomBurden = patient.deepPhenotype.symptomBurden;
+              }
+              
+              if (selectedDeepPhenotypeMetrics.includes('adlScore')) {
+                deepData.adlScore = patient.deepPhenotype.adlScore;
+              }
+              
+              if (selectedDeepPhenotypeMetrics.includes('mentalHealthScore')) {
+                deepData.mentalHealthScore = patient.deepPhenotype.mentalHealthScore;
+              }
+              
+              if (selectedDeepPhenotypeMetrics.includes('functionalStatus') && patient.deepPhenotype.functionalStatus) {
+                deepData.physicalFunction = patient.deepPhenotype.functionalStatus.physicalFunction;
+                deepData.mobility = patient.deepPhenotype.functionalStatus.mobility;
+                deepData.adlIndependence = patient.deepPhenotype.functionalStatus.adlIndependence;
+                deepData.cognitiveFunction = patient.deepPhenotype.functionalStatus.cognitiveFunction;
+                deepData.frailtyIndex = patient.deepPhenotype.functionalStatus.frailtyIndex;
+              }
+              
+              return { ...baseData, ...deepData };
+            }
+            
+            return baseData;
+          });
+        } else {
+          csvData = data.map(patient => ({
+            id: patient.id,
+            gender: patient.gender,
+            age: patient.age,
+            condition: patient.condition,
+            unit: patient.unit,
+            riskScore: patient.riskScore,
+            lengthOfStay: patient.lengthOfStay,
+            readmissionRisk: patient.readmissionRisk,
+            outcome: patient.outcome
+          }));
+        }
+        
         exportToCSV(csvData, "SOCR-QI_Data.csv");
       }
       
@@ -138,6 +224,91 @@ const Reports = () => {
       ? Math.round(nonImprovedPatients.reduce((sum, p) => sum + p.lengthOfStay, 0) / nonImprovedPatients.length)
       : 0;
   };
+  
+  // Helper function to safely access nested properties
+  const safelyGetNestedValue = (obj: any, path: string) => {
+    try {
+      return path.split('.').reduce((prev, curr) => prev && prev[curr], obj);
+    } catch (e) {
+      return undefined;
+    }
+  };
+  
+  // Calculate deep phenotype metrics if available
+  const getDeepPhenotypeMetrics = () => {
+    if (!hasDeepPhenotypingData) return null;
+    
+    // Quality of life score by unit
+    const qualityOfLifeByUnit = data.reduce((acc, p) => {
+      if (p.deepPhenotype?.qualityOfLifeScore !== undefined) {
+        const unit = p.unit;
+        if (!acc[unit]) {
+          acc[unit] = { total: 0, count: 0 };
+        }
+        acc[unit].total += p.deepPhenotype.qualityOfLifeScore;
+        acc[unit].count++;
+      }
+      return acc;
+    }, {} as Record<string, { total: number, count: number }>);
+    
+    // Patient satisfaction by outcome
+    const satisfactionByOutcome = data.reduce((acc, p) => {
+      if (p.deepPhenotype?.patientSatisfactionScore !== undefined) {
+        const outcome = p.outcome;
+        if (!acc[outcome]) {
+          acc[outcome] = { total: 0, count: 0 };
+        }
+        acc[outcome].total += p.deepPhenotype.patientSatisfactionScore;
+        acc[outcome].count++;
+      }
+      return acc;
+    }, {} as Record<string, { total: number, count: number }>);
+    
+    // Functional status metrics
+    const functionalStatusMetrics = data.reduce((acc, p) => {
+      if (p.deepPhenotype?.functionalStatus) {
+        const fs = p.deepPhenotype.functionalStatus;
+        
+        if (fs.physicalFunction !== undefined) {
+          if (!acc.physicalFunction) acc.physicalFunction = { total: 0, count: 0 };
+          acc.physicalFunction.total += fs.physicalFunction;
+          acc.physicalFunction.count++;
+        }
+        
+        if (fs.mobility !== undefined) {
+          if (!acc.mobility) acc.mobility = { total: 0, count: 0 };
+          acc.mobility.total += fs.mobility;
+          acc.mobility.count++;
+        }
+        
+        if (fs.frailtyIndex !== undefined) {
+          if (!acc.frailtyIndex) acc.frailtyIndex = { total: 0, count: 0 };
+          acc.frailtyIndex.total += fs.frailtyIndex;
+          acc.frailtyIndex.count++;
+        }
+      }
+      return acc;
+    }, {} as Record<string, { total: number, count: number }>);
+    
+    return {
+      qualityOfLifeByUnit: Object.entries(qualityOfLifeByUnit).map(([unit, data]) => ({
+        unit,
+        value: (data.total / data.count).toFixed(1)
+      })),
+      satisfactionByOutcome: Object.entries(satisfactionByOutcome).map(([outcome, data]) => ({
+        outcome,
+        value: (data.total / data.count).toFixed(1)
+      })),
+      functionalStatus: {
+        avgPhysicalFunction: functionalStatusMetrics.physicalFunction ? 
+          (functionalStatusMetrics.physicalFunction.total / functionalStatusMetrics.physicalFunction.count).toFixed(1) : "N/A",
+        avgMobility: functionalStatusMetrics.mobility ? 
+          (functionalStatusMetrics.mobility.total / functionalStatusMetrics.mobility.count).toFixed(1) : "N/A",
+        avgFrailty: functionalStatusMetrics.frailtyIndex ? 
+          (functionalStatusMetrics.frailtyIndex.total / functionalStatusMetrics.frailtyIndex.count).toFixed(1) : "N/A"
+      }
+    };
+  };
 
   // Prepare visualization data
   const outcomeData = Object.entries(data.reduce((acc, p) => {
@@ -165,6 +336,39 @@ const Reports = () => {
       avgRisk: parseFloat(avgRisk.toFixed(1))
     };
   });
+
+  // Prepare deep phenotype visualization data if available
+  const deepPhenotypeData = hasDeepPhenotypingData ? {
+    qualityOfLife: data
+      .filter(p => p.deepPhenotype?.qualityOfLifeScore !== undefined)
+      .map(p => ({
+        unit: p.unit,
+        value: p.deepPhenotype!.qualityOfLifeScore
+      }))
+      .reduce((acc, { unit, value }) => {
+        if (!acc[unit]) {
+          acc[unit] = { total: 0, count: 0 };
+        }
+        acc[unit].total += value;
+        acc[unit].count++;
+        return acc;
+      }, {} as Record<string, { total: number, count: number }>),
+    
+    patientSatisfaction: data
+      .filter(p => p.deepPhenotype?.patientSatisfactionScore !== undefined)
+      .map(p => ({
+        outcome: p.outcome,
+        value: p.deepPhenotype!.patientSatisfactionScore
+      }))
+      .reduce((acc, { outcome, value }) => {
+        if (!acc[outcome]) {
+          acc[outcome] = { total: 0, count: 0 };
+        }
+        acc[outcome].total += value;
+        acc[outcome].count++;
+        return acc;
+      }, {} as Record<string, { total: number, count: number }>)
+  } : null;
 
   return (
     <div className="space-y-6 print:p-0">
@@ -261,7 +465,73 @@ const Reports = () => {
               />
               <Label htmlFor="analytics">Analytics</Label>
             </div>
+            {hasDeepPhenotypingData && (
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="deepPhenotyping" 
+                  checked={reportSections.deepPhenotyping}
+                  onCheckedChange={() => handleSectionToggle("deepPhenotyping")}
+                />
+                <Label htmlFor="deepPhenotyping">Deep Phenotyping</Label>
+              </div>
+            )}
           </div>
+          
+          {hasDeepPhenotypingData && reportSections.deepPhenotyping && exportFormat === "csv" && (
+            <div className="mt-4 print:hidden">
+              <Label className="block mb-2">Select Deep Phenotype Metrics for CSV Export</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="quality-of-life" 
+                    checked={selectedDeepPhenotypeMetrics.includes("qualityOfLifeScore")}
+                    onCheckedChange={() => handleDeepPhenotypeMetricToggle("qualityOfLifeScore")}
+                  />
+                  <Label htmlFor="quality-of-life">Quality of Life</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="patient-satisfaction" 
+                    checked={selectedDeepPhenotypeMetrics.includes("patientSatisfactionScore")}
+                    onCheckedChange={() => handleDeepPhenotypeMetricToggle("patientSatisfactionScore")}
+                  />
+                  <Label htmlFor="patient-satisfaction">Patient Satisfaction</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="symptom-burden" 
+                    checked={selectedDeepPhenotypeMetrics.includes("symptomBurden")}
+                    onCheckedChange={() => handleDeepPhenotypeMetricToggle("symptomBurden")}
+                  />
+                  <Label htmlFor="symptom-burden">Symptom Burden</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="adl-score" 
+                    checked={selectedDeepPhenotypeMetrics.includes("adlScore")}
+                    onCheckedChange={() => handleDeepPhenotypeMetricToggle("adlScore")}
+                  />
+                  <Label htmlFor="adl-score">ADL Score</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="mental-health" 
+                    checked={selectedDeepPhenotypeMetrics.includes("mentalHealthScore")}
+                    onCheckedChange={() => handleDeepPhenotypeMetricToggle("mentalHealthScore")}
+                  />
+                  <Label htmlFor="mental-health">Mental Health</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="functional-status" 
+                    checked={selectedDeepPhenotypeMetrics.includes("functionalStatus")}
+                    onCheckedChange={() => handleDeepPhenotypeMetricToggle("functionalStatus")}
+                  />
+                  <Label htmlFor="functional-status">Functional Status</Label>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -449,136 +719,97 @@ const Reports = () => {
           </Card>
         )}
 
-        {/* Visualizations Section */}
-        {reportSections.visualizations && (
+        {/* Deep Phenotyping Section */}
+        {reportSections.deepPhenotyping && hasDeepPhenotypingData && (
           <Card className="print:shadow-none print:border-0">
             <CardHeader>
-              <CardTitle>Data Visualizations</CardTitle>
+              <CardTitle>Deep Phenotyping Data</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-medium mb-3">Outcome Distribution</h3>
-                  <div className="h-64">
-                    <PieChart
-                      data={outcomeData}
-                      index="name"
-                      categoryKey="value"
-                      valueFormatter={(value) => `${value} patients`}
-                    />
-                  </div>
-                </div>
+              <Tabs defaultValue="patientReported">
+                <TabsList className="w-full">
+                  <TabsTrigger value="patientReported">Patient-Reported</TabsTrigger>
+                  <TabsTrigger value="functional">Functional Status</TabsTrigger>
+                  <TabsTrigger value="healthcare">Healthcare Utilization</TabsTrigger>
+                  <TabsTrigger value="diseaseSpecific">Disease-Specific</TabsTrigger>
+                </TabsList>
                 
-                <div>
-                  <h3 className="font-medium mb-3">Gender Distribution</h3>
-                  <div className="h-64">
-                    <PieChart
-                      data={genderData}
-                      index="name"
-                      categoryKey="value"
-                      valueFormatter={(value) => `${value} patients`}
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium mb-3">Average Length of Stay by Outcome</h3>
-                  <div className="h-64">
-                    <BarChart
-                      data={losData}
-                      index="group"
-                      categories={["value"]}
-                      valueFormatter={(value) => `${value} days`}
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium mb-3">Risk Score by Condition</h3>
-                  <div className="h-64">
-                    <BarChart
-                      data={riskByConditionData}
-                      index="condition"
-                      categories={["avgRisk"]}
-                      valueFormatter={(value) => `${value}`}
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Analytics Insights Section */}
-        {reportSections.analytics && (
-          <Card className="print:shadow-none print:border-0">
-            <CardHeader>
-              <CardTitle>Analytical Insights</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <h3 className="font-medium">Key Findings</h3>
-                  <ul className="mt-2 space-y-2 text-sm list-disc pl-5">
-                    <li>
-                      There appears to be a correlation between higher risk scores and longer lengths of stay, 
-                      suggesting that early risk assessment may help predict resource needs.
-                    </li>
-                    <li>
-                      Patients in the {getBestPerformingUnit()} unit showed the highest improvement rates.
-                    </li>
-                    <li>
-                      The average length of stay for improved patients is {getAvgLOSImproved()} days, 
-                      compared to {getAvgLOSNonImproved()} days for others.
-                    </li>
-                    <li>
-                      {data.filter(p => p.readmissionRisk > 50).length} patients ({Math.round((data.filter(p => p.readmissionRisk > 50).length / data.length) * 100)}%)
-                      have a readmission risk greater than 50%, suggesting targeted discharge planning may be beneficial.
-                    </li>
-                  </ul>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium">Quality Improvement Recommendations</h3>
-                  <ul className="mt-2 space-y-2 text-sm list-disc pl-5">
-                    <li>
-                      Implement standardized risk assessment procedures across all units to identify high-risk patients early.
-                    </li>
-                    <li>
-                      Investigate successful practices in the {getBestPerformingUnit()} unit for potential implementation in other units.
-                    </li>
-                    <li>
-                      Focus on reducing length of stay for {getLongestStayCondition()} patients through standardized care pathways.
-                    </li>
-                    <li>
-                      Develop a comprehensive discharge planning process that includes readmission risk assessment and targeted interventions.
-                    </li>
-                    <li>
-                      Implement regular data review sessions with clinical teams to identify opportunities for improvement and track progress.
-                    </li>
-                  </ul>
-                </div>
-                
-                <div>
-                  <h3 className="font-medium">Statistical Significance</h3>
-                  <p className="mt-2 text-sm">
-                    The correlation between risk scores and length of stay is statistically significant (p &lt; 0.05),
-                    indicating a reliable relationship that can be used for planning purposes.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Report Footer */}
-        <div className="border-t pt-4 text-sm text-gray-500 text-center">
-          <p>Report generated by SOCR-QI Health Quality Improvement Application</p>
-          <p>&copy; {new Date().getFullYear()} SOCR - Statistics Online Computational Resource</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default Reports;
+                <TabsContent value="patientReported" className="space-y-6">
+                  <div>
+                    <h3 className="font-medium mb-3">Patient-Reported Outcomes</h3>
+                    <div className="space-y-4">
+                      <Accordion type="single" collapsible>
+                        <AccordionItem value="qol">
+                          <AccordionTrigger>Quality of Life Scores</AccordionTrigger>
+                          <AccordionContent>
+                            <div className="space-y-3">
+                              <p className="text-sm">
+                                Average Quality of Life Score: {
+                                  data
+                                    .filter(p => p.deepPhenotype?.qualityOfLifeScore !== undefined)
+                                    .reduce((sum, p) => sum + p.deepPhenotype!.qualityOfLifeScore, 0) / 
+                                    data.filter(p => p.deepPhenotype?.qualityOfLifeScore !== undefined).length
+                                }.toFixed(1)
+                              </p>
+                              
+                              <div className="h-48">
+                                <BarChart
+                                  data={Object.entries(deepPhenotypeData?.qualityOfLife || {}).map(([unit, data]) => ({
+                                    name: unit,
+                                    value: parseFloat((data.total / data.count).toFixed(1))
+                                  }))}
+                                  index="name"
+                                  categories={["value"]}
+                                  valueFormatter={(value) => `${value}`}
+                                  colors={["green"]}
+                                />
+                              </div>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                        
+                        <AccordionItem value="satisfaction">
+                          <AccordionTrigger>Patient Satisfaction</AccordionTrigger>
+                          <AccordionContent>
+                            <div className="space-y-3">
+                              <p className="text-sm">
+                                Average Patient Satisfaction Score: {
+                                  data
+                                    .filter(p => p.deepPhenotype?.patientSatisfactionScore !== undefined)
+                                    .reduce((sum, p) => sum + p.deepPhenotype!.patientSatisfactionScore, 0) / 
+                                    data.filter(p => p.deepPhenotype?.patientSatisfactionScore !== undefined).length
+                                }.toFixed(1)
+                              </p>
+                              
+                              <div className="h-48">
+                                <BarChart
+                                  data={Object.entries(deepPhenotypeData?.patientSatisfaction || {}).map(([outcome, data]) => ({
+                                    name: outcome,
+                                    value: parseFloat((data.total / data.count).toFixed(1))
+                                  }))}
+                                  index="name"
+                                  categories={["value"]}
+                                  valueFormatter={(value) => `${value}`}
+                                  colors={["blue"]}
+                                />
+                              </div>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                        
+                        <AccordionItem value="symptom">
+                          <AccordionTrigger>Symptom Burden</AccordionTrigger>
+                          <AccordionContent>
+                            <div className="space-y-3">
+                              <p className="text-sm">
+                                Average Symptom Burden: {
+                                  data
+                                    .filter(p => p.deepPhenotype?.symptomBurden !== undefined)
+                                    .reduce((sum, p) => sum + p.deepPhenotype!.symptomBurden, 0) / 
+                                    data.filter(p => p.deepPhenotype?.symptomBurden !== undefined).length
+                                }.toFixed(1)
+                              </p>
+                              
+                              <p className="text-sm">
+                                Patients with High Symptom Burden (&gt; 70): {
+                                  data.filter(p => p.deepPhenotype?.symptomBurden !== undefined &&
