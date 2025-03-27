@@ -24,6 +24,8 @@ interface BarChartProps {
   layout?: "vertical" | "horizontal";
   title?: string;
   height?: number;
+  stack?: boolean;
+  stackLabel?: string;
 }
 
 export const BarChart: React.FC<BarChartProps> = ({
@@ -34,7 +36,9 @@ export const BarChart: React.FC<BarChartProps> = ({
   valueFormatter = (value) => String(value),
   layout = "horizontal",
   title,
-  height
+  height,
+  stack = false,
+  stackLabel
 }) => {
   return (
     <ChartContainer title={title} height={height}>
@@ -62,6 +66,7 @@ export const BarChart: React.FC<BarChartProps> = ({
             key={category}
             dataKey={category}
             fill={colors[i % colors.length]}
+            stackId={stack ? (stackLabel || "stack") : undefined}
           />
         ))}
       </RechartsBarChart>

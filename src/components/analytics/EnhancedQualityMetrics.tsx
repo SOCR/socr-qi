@@ -14,6 +14,16 @@ interface EnhancedQualityMetricsProps {
   hasDeepPhenotypingData: boolean;
 }
 
+// Define types for grouped data to prevent TypeScript errors
+interface GroupedValue {
+  total: number;
+  count: number;
+}
+
+interface GroupedData {
+  [key: string]: GroupedValue;
+}
+
 const EnhancedQualityMetrics: React.FC<EnhancedQualityMetricsProps> = ({ data, hasDeepPhenotypingData }) => {
   const { toast } = useToast();
   const [metrics, setMetrics] = useState<any>(null);
@@ -123,7 +133,7 @@ const EnhancedQualityMetrics: React.FC<EnhancedQualityMetricsProps> = ({ data, h
   
   // Group deep phenotype data by a field
   const groupDeepPhenotypeDataByField = (field: string, metricPath: string) => {
-    const groupedData: Record<string, any[]> = {};
+    const groupedData: GroupedData = {};
     
     data.forEach(item => {
       const key = item[field];
@@ -131,18 +141,19 @@ const EnhancedQualityMetrics: React.FC<EnhancedQualityMetricsProps> = ({ data, h
       
       if (value !== null) {
         if (!groupedData[key]) {
-          groupedData[key] = [];
+          groupedData[key] = { total: 0, count: 0 };
         }
-        groupedData[key].push({ ...item, metricValue: value });
+        groupedData[key].total += value;
+        groupedData[key].count += 1;
       }
     });
     
-    return Object.entries(groupedData).map(([name, items]) => {
-      const avgMetric = items.reduce((sum, item) => sum + item.metricValue, 0) / items.length;
+    return Object.entries(groupedData).map(([name, values]) => {
+      const avgMetric = values.total / values.count;
       
       return {
         name,
-        count: items.length,
+        count: values.count,
         value: avgMetric.toFixed(1)
       };
     });
@@ -150,7 +161,7 @@ const EnhancedQualityMetrics: React.FC<EnhancedQualityMetricsProps> = ({ data, h
   
   // Calculate a composite score from multiple metrics
   const calculateCompositeScore = (metricPaths: string[]) => {
-    const scores: Record<string, number> = {};
+    const scores: Record<string, { total: number, count: number }> = {};
     
     data.forEach(item => {
       let validMetrics = 0;
@@ -182,7 +193,7 @@ const EnhancedQualityMetrics: React.FC<EnhancedQualityMetricsProps> = ({ data, h
   
   // Analyze correlation between outcomes and metrics
   const correlateOutcomeWithMetrics = () => {
-    const outcomes: Record<string, any> = {
+    const outcomes: Record<string, { count: number, metrics: Record<string, { sum: number, count: number }> }> = {
       "Improved": { count: 0, metrics: {} },
       "Stable": { count: 0, metrics: {} },
       "Deteriorated": { count: 0, metrics: {} }
