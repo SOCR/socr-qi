@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useData } from "@/context/DataContext";
 import { 
@@ -767,49 +768,18 @@ const Reports = () => {
                             </div>
                           </AccordionContent>
                         </AccordionItem>
-                        
-                        <AccordionItem value="satisfaction">
-                          <AccordionTrigger>Patient Satisfaction</AccordionTrigger>
-                          <AccordionContent>
-                            <div className="space-y-3">
-                              <p className="text-sm">
-                                Average Patient Satisfaction Score: {
-                                  data
-                                    .filter(p => p.deepPhenotype?.patientSatisfactionScore !== undefined)
-                                    .reduce((sum, p) => sum + p.deepPhenotype!.patientSatisfactionScore, 0) / 
-                                    data.filter(p => p.deepPhenotype?.patientSatisfactionScore !== undefined).length
-                                }.toFixed(1)
-                              </p>
-                              
-                              <div className="h-48">
-                                <BarChart
-                                  data={Object.entries(deepPhenotypeData?.patientSatisfaction || {}).map(([outcome, data]) => ({
-                                    name: outcome,
-                                    value: parseFloat((data.total / data.count).toFixed(1))
-                                  }))}
-                                  index="name"
-                                  categories={["value"]}
-                                  valueFormatter={(value) => `${value}`}
-                                  colors={["blue"]}
-                                />
-                              </div>
-                            </div>
-                          </AccordionContent>
-                        </AccordionItem>
-                        
-                        <AccordionItem value="symptom">
-                          <AccordionTrigger>Symptom Burden</AccordionTrigger>
-                          <AccordionContent>
-                            <div className="space-y-3">
-                              <p className="text-sm">
-                                Average Symptom Burden: {
-                                  data
-                                    .filter(p => p.deepPhenotype?.symptomBurden !== undefined)
-                                    .reduce((sum, p) => sum + p.deepPhenotype!.symptomBurden, 0) / 
-                                    data.filter(p => p.deepPhenotype?.symptomBurden !== undefined).length
-                                }.toFixed(1)
-                              </p>
-                              
-                              <p className="text-sm">
-                                Patients with High Symptom Burden (&gt; 70): {
-                                  data.filter(p => p.deepPhenotype?.symptomBurden !== undefined &&
+                      </Accordion>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Reports;
+
