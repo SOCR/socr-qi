@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useData } from "@/context/DataContext";
 import { 
   Card, 
@@ -19,12 +19,11 @@ import ClusteringAnalysis from "./ClusteringAnalysis";
 import RegressionAnalysis from "./RegressionAnalysis";
 import { RegressionResult, multipleLinearRegression } from "@/utils/analyticsUtils";
 
-// Basic variable options
-const basicVariableOptions = [
-  { value: "age", label: "Age", group: "Basic" },
-  { value: "riskScore", label: "Risk Score", group: "Basic" },
-  { value: "lengthOfStay", label: "Length of Stay", group: "Basic" },
-  { value: "readmissionRisk", label: "Readmission Risk", group: "Basic" }
+export const variableOptions = [
+  { value: "age", label: "Age" },
+  { value: "riskScore", label: "Risk Score" },
+  { value: "lengthOfStay", label: "Length of Stay" },
+  { value: "readmissionRisk", label: "Readmission Risk" }
 ];
 
 const AdvancedAnalyticsContainer = () => {
@@ -32,44 +31,6 @@ const AdvancedAnalyticsContainer = () => {
   const { toast } = useToast();
   const [analysisType, setAnalysisType] = useState("correlation");
   const [results, setResults] = useState<any>(null);
-  const [variableOptions, setVariableOptions] = useState(basicVariableOptions);
-  
-  // Check if deep phenotyping data is available
-  const hasDeepPhenotypingData = data.some(participant => participant.deepPhenotype);
-  
-  // Update variable options when data changes, incorporating deep phenotyping data if available
-  useEffect(() => {
-    let options = [...basicVariableOptions];
-    
-    if (hasDeepPhenotypingData) {
-      // Add demographic variables
-      options = [
-        ...options,
-        { value: "deepPhenotype.qualityOfLifeScore", label: "Quality of Life Score", group: "Patient-Reported Outcomes" },
-        { value: "deepPhenotype.patientSatisfactionScore", label: "Patient Satisfaction", group: "Patient-Reported Outcomes" },
-        { value: "deepPhenotype.symptomBurden", label: "Symptom Burden", group: "Patient-Reported Outcomes" },
-        { value: "deepPhenotype.mentalHealthScore", label: "Mental Health Score", group: "Patient-Reported Outcomes" },
-        
-        { value: "deepPhenotype.medicationAdherenceRate", label: "Medication Adherence", group: "Treatment" },
-        { value: "deepPhenotype.treatmentCompletionRate", label: "Treatment Completion", group: "Treatment" },
-        
-        { value: "deepPhenotype.edVisitsPerYear", label: "ED Visits/Year", group: "Healthcare Utilization" },
-        { value: "deepPhenotype.hospitalizationsPerYear", label: "Hospitalizations/Year", group: "Healthcare Utilization" },
-        { value: "deepPhenotype.primaryCareVisitsPerYear", label: "PCP Visits/Year", group: "Healthcare Utilization" },
-        
-        { value: "deepPhenotype.totalCostOfCare", label: "Total Cost of Care", group: "Cost & Resources" },
-        
-        { value: "deepPhenotype.timeToFollowUp", label: "Time to Follow-up", group: "Care Coordination" },
-        
-        { value: "deepPhenotype.functionalStatus.physicalFunction", label: "Physical Function", group: "Functional Status" },
-        { value: "deepPhenotype.functionalStatus.mobility", label: "Mobility", group: "Functional Status" },
-        { value: "deepPhenotype.functionalStatus.cognitiveFunction", label: "Cognitive Function", group: "Functional Status" },
-        { value: "deepPhenotype.functionalStatus.frailtyIndex", label: "Frailty Index", group: "Functional Status" },
-      ];
-    }
-    
-    setVariableOptions(options);
-  }, [data, hasDeepPhenotypingData]);
   
   // Correlation state
   const [xVariable, setXVariable] = useState("age");
@@ -152,20 +113,6 @@ const AdvancedAnalyticsContainer = () => {
         });
       }
     }
-    else if (analysisType === "deepPhenotype" && hasDeepPhenotypingData) {
-      // For deep phenotype analysis, we'll also use correlation for now
-      setResults({
-        type: "correlation",
-        xVariable,
-        yVariable,
-        isDeepPhenotype: true
-      });
-      
-      toast({
-        title: "Deep Phenotype Analysis Complete",
-        description: `Analysis between ${xVariable} and ${yVariable} completed`
-      });
-    }
   };
   
   return (
@@ -186,7 +133,7 @@ const AdvancedAnalyticsContainer = () => {
           </div>
           
           <div className="w-full sm:w-2/3">
-            {(analysisType === "correlation" || analysisType === "deepPhenotype") && (
+            {analysisType === "correlation" && (
               <CorrelationControls
                 xVariable={xVariable}
                 setXVariable={setXVariable}
@@ -232,7 +179,6 @@ const AdvancedAnalyticsContainer = () => {
                 xVariable={results.xVariable}
                 yVariable={results.yVariable}
                 variableOptions={variableOptions}
-                isDeepPhenotype={results.isDeepPhenotype}
               />
             )}
             

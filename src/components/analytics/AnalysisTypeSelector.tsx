@@ -23,7 +23,7 @@ const AnalysisTypeSelector: React.FC<AnalysisTypeSelectorProps> = ({
   
   // Check if any participant has deep phenotyping data
   const hasDeepPhenotypingData = data.some(participant => participant.deepPhenotype);
-  
+
   return (
     <div>
       <Label htmlFor="analysis-type">Analysis Type</Label>
