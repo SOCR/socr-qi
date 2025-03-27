@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { simulateData, SimulationConfig } from "@/lib/dataSimulation";
 
@@ -28,6 +27,7 @@ export interface Participant {
     effectiveness: number;
   }[];
   comorbidities?: string[];
+  deepPhenotype?: Record<string, any>; // Add support for deep phenotyping data
   [key: string]: any;
 }
 
@@ -74,7 +74,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     measurementFrequency: 'medium',
     timePatterns: 'realistic',
     dataVariability: 'medium',
-    outcomeDistribution: 'balanced'
+    outcomeDistribution: 'balanced',
+    enableDeepPhenotyping: false // Default to false for the new option
   };
   
   const [simulationOptions, setSimulationOptions] = useState<SimulationConfig>(() => {
@@ -85,7 +86,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       return {
         ...parsedOptions,
         startDate: new Date(parsedOptions.startDate),
-        endDate: new Date(parsedOptions.endDate)
+        endDate: new Date(parsedOptions.endDate),
+        enableDeepPhenotyping: parsedOptions.enableDeepPhenotyping || false // Handle old stored options
       };
     }
     return defaultOptions;
