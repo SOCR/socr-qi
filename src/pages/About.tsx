@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
@@ -170,6 +169,47 @@ const About = () => {
         </CardContent>
       </Card>
       
+      <Card>
+        <CardHeader>
+          <CardTitle>Acknowledgments</CardTitle>
+          <CardDescription>
+            Recognizing Contributions from University of Michigan
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Department of Systems, Populations, and Leadership (SPL)</h3>
+              <p className="text-sm text-gray-600 mb-2">
+                The SPL Department plays a crucial role in advancing nursing research, education, and practice through innovative approaches to healthcare systems and population health.
+              </p>
+              <a 
+                href="https://nursing.umich.edu/about/departments/department-systems-populations-and-leadership-spl" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 text-sm"
+              >
+                Learn more about SPL Department →
+              </a>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Leadership, Analytics, and Innovation (LAI) Program</h3>
+              <p className="text-sm text-gray-600 mb-2">
+                The LAI Program focuses on developing nursing leaders who can leverage advanced analytics and innovative approaches to transform healthcare delivery and improve patient outcomes.
+              </p>
+              <a 
+                href="https://nursing.umich.edu/academics/specialties/leadership-analytics-and-innovation" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 text-sm"
+              >
+                Explore LAI Program →
+              </a>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>SOCR Resources</CardTitle>
