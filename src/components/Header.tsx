@@ -1,9 +1,9 @@
-
 import { Link } from "react-router-dom";
+import { Settings } from "./Settings";
 
 const Header = () => {
   return (
-    <header className="bg-white shadow-sm">
+    <header className="bg-white shadow-sm dark:bg-gray-800">
       <div className="container mx-auto py-4 px-4 flex flex-col md:flex-row justify-between items-center">
         <div className="flex items-center gap-3 mb-4 md:mb-0">
           <img 
@@ -41,7 +41,8 @@ const Header = () => {
           </a>
         </div>
         
-        <div className="flex items-center mt-4 md:mt-0">
+        <div className="flex items-center mt-4 md:mt-0 gap-4">
+          <Settings />
           <a 
             href="https://nursing.umich.edu/" 
             target="_blank" 
