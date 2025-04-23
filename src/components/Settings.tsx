@@ -1,5 +1,5 @@
 
-import { MoonIcon, SunIcon } from "lucide-react";
+import { MoonIcon, SunIcon, HelpCircleIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import {
   Dialog,
@@ -11,9 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useTutorial } from "./TutorialProvider";
 
 export function Settings() {
   const { theme, setTheme } = useTheme();
+  const { setShowTutorial } = useTutorial();
 
   return (
     <Dialog>
@@ -28,14 +30,30 @@ export function Settings() {
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <Label htmlFor="dark-mode">Dark Mode</Label>
+            <Label htmlFor="dark-mode" className="text-base">Dark Mode</Label>
             <Switch
               id="dark-mode"
               checked={theme === "dark"}
               onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
             />
+          </div>
+          
+          <div className="pt-2 border-t">
+            <div className="flex flex-col gap-2">
+              <h3 className="font-medium text-base">Help & Tutorial</h3>
+              <p className="text-sm text-muted-foreground mb-2">
+                Take an interactive tour of SOCR-QI features and learn how to use the application.
+              </p>
+              <Button 
+                onClick={() => setShowTutorial(true)}
+                className="w-full flex items-center gap-2"
+              >
+                <HelpCircleIcon className="h-4 w-4" />
+                Start Interactive Tutorial
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
