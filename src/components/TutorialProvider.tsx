@@ -247,7 +247,8 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       </Dialog>
       
       {/* Add tutorial highlight styles */}
-      <style jsx global>{`
+      <style>
+        {`
         .tutorial-highlight {
           position: relative;
           z-index: 50;
@@ -267,7 +268,9 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
             box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
           }
         }
-      `}</style>
+        `}
+      </style>
     </TutorialContext.Provider>
   );
 }
+
