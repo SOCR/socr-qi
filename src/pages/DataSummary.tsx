@@ -1,30 +1,16 @@
 
 import { useState } from "react";
 import { useData } from "@/context/DataContext";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import NoDataMessage from "@/components/NoDataMessage";
 import MissingnessAnalysis from "@/components/MissingnessAnalysis";
 import TemporalTrends from "@/components/TemporalTrends";
 import DataCodeBook from "@/components/DataCodeBook";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { InfoIcon } from "lucide-react";
-
-// Helper to safely access nested properties
-const getNestedValue = (obj: any, path: string) => {
-  try {
-    return path.split('.').reduce((prev, curr) => prev && prev[curr], obj);
-  } catch (e) {
-    return undefined;
-  }
-};
+import DataSummaryHeader from "@/components/DataSummaryHeader";
+import DataSummaryDemographics from "@/components/DataSummaryDemographics";
+import DataSummaryClinical from "@/components/DataSummaryClinical";
+import DataSummaryDeepPhenotype from "@/components/DataSummaryDeepPhenotype";
+import DataSummaryOverview from "@/components/DataSummaryOverview";
 
 const DataSummary = () => {
   const { data, isDataLoaded } = useData();
@@ -130,6 +116,15 @@ const DataSummary = () => {
       type: 'unknown'
     };
   };
+
+  // Helper to safely access nested properties
+  const getNestedValue = (obj: any, path: string) => {
+    try {
+      return path.split('.').reduce((prev, curr) => prev && prev[curr], obj);
+    } catch (e) {
+      return undefined;
+    }
+  };
   
   // Define deep phenotype categories
   const deepPhenotypeCategories = [
@@ -153,46 +148,16 @@ const DataSummary = () => {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Data Summary</h1>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Total Participants</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{totalParticipants}</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Age Range</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{minAge} - {maxAge}</p>
-            <p className="text-sm text-muted-foreground">Avg: {avgAge}</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Avg. Length of Stay</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{avgLOS} days</p>
-            <p className="text-sm text-muted-foreground">Range: {minLOS} - {maxLOS}</p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Avg. Risk Score</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{avgRiskScore}</p>
-            <p className="text-sm text-muted-foreground">Scale: 0-100</p>
-          </CardContent>
-        </Card>
-      </div>
+      <DataSummaryHeader 
+        totalParticipants={totalParticipants}
+        minAge={minAge}
+        maxAge={maxAge}
+        avgAge={avgAge}
+        minLOS={minLOS}
+        maxLOS={maxLOS}
+        avgLOS={avgLOS}
+        avgRiskScore={avgRiskScore}
+      />
 
       <Tabs defaultValue="demographics" className="space-y-4">
         <TabsList className="grid w-full grid-cols-1 md:grid-cols-5">
@@ -206,203 +171,28 @@ const DataSummary = () => {
         </TabsList>
 
         <TabsContent value="demographics">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Gender Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {Object.entries(genderCounts).map(([gender, count]) => (
-                    <div key={gender} className="flex justify-between items-center">
-                      <span>{gender}</span>
-                      <div className="flex items-center gap-2">
-                        <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-500 rounded-full" 
-                            style={{ width: `${(count / totalParticipants) * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium">
-                          {count} ({Math.round((count / totalParticipants) * 100)}%)
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Unit Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {Object.entries(unitCounts).map(([unit, count]) => (
-                    <div key={unit} className="flex justify-between items-center">
-                      <span>{unit}</span>
-                      <div className="flex items-center gap-2">
-                        <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-500 rounded-full" 
-                            style={{ width: `${(count / totalParticipants) * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium">
-                          {count} ({Math.round((count / totalParticipants) * 100)}%)
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <DataSummaryDemographics 
+            genderCounts={genderCounts}
+            unitCounts={unitCounts}
+            totalParticipants={totalParticipants}
+          />
         </TabsContent>
 
         <TabsContent value="clinical">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Condition Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {Object.entries(conditionCounts).map(([condition, count]) => (
-                    <div key={condition} className="flex justify-between items-center">
-                      <span>{condition}</span>
-                      <div className="flex items-center gap-2">
-                        <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-500 rounded-full" 
-                            style={{ width: `${(count / totalParticipants) * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium">
-                          {count} ({Math.round((count / totalParticipants) * 100)}%)
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Outcome Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {Object.entries(outcomeCounts).map(([outcome, count]) => (
-                    <div key={outcome} className="flex justify-between items-center">
-                      <span>{outcome}</span>
-                      <div className="flex items-center gap-2">
-                        <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-blue-500 rounded-full" 
-                            style={{ width: `${(count / totalParticipants) * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-medium">
-                          {count} ({Math.round((count / totalParticipants) * 100)}%)
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <DataSummaryClinical 
+            conditionCounts={conditionCounts}
+            outcomeCounts={outcomeCounts}
+            totalParticipants={totalParticipants}
+          />
         </TabsContent>
         
         {hasDeepPhenotype && (
           <TabsContent value="deepPhenotype">
-            <Card>
-              <CardHeader>
-                <CardTitle>Deep Phenotype Data Summary</CardTitle>
-                <CardDescription>
-                  Explore enhanced patient phenotyping variables across multiple domains
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Accordion type="single" collapsible className="w-full">
-                  {deepPhenotypeCategories.map((category) => {
-                    const availableVars = category.variables.filter(v => 
-                      data.some(p => p.deepPhenotype && getNestedValue(p.deepPhenotype, v) !== undefined)
-                    );
-                    
-                    if (availableVars.length === 0) return null;
-                    
-                    return (
-                      <AccordionItem key={category.id} value={category.id}>
-                        <AccordionTrigger className="hover:bg-gray-50 px-4">
-                          {category.label}
-                        </AccordionTrigger>
-                        <AccordionContent className="px-4">
-                          <div className="space-y-4">
-                            {availableVars.map((varPath) => {
-                              const stats = calculateDeepPhenotypeStats(varPath);
-                              if (!stats) return null;
-                              
-                              // Get the variable label (last part of the path)
-                              const varLabel = varPath.split('.').pop() || varPath;
-                              const formattedLabel = varLabel
-                                .replace(/([A-Z])/g, ' $1')
-                                .replace(/^./, str => str.toUpperCase());
-                              
-                              return (
-                                <div key={varPath} className="border rounded-md p-4">
-                                  <h4 className="font-medium mb-2">{formattedLabel}</h4>
-                                  {stats.type === 'numeric' && (
-                                    <div className="grid grid-cols-3 gap-2 text-sm">
-                                      <div>
-                                        <p className="text-gray-500">Min</p>
-                                        <p className="font-medium">{stats.min}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-gray-500">Average</p>
-                                        <p className="font-medium">{stats.avg}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-gray-500">Max</p>
-                                        <p className="font-medium">{stats.max}</p>
-                                      </div>
-                                    </div>
-                                  )}
-                                  
-                                  {stats.type === 'categorical' && (
-                                    <div className="space-y-2">
-                                      {Object.entries(stats.categories).map(([value, count]) => (
-                                        <div key={value} className="flex justify-between items-center">
-                                          <span>{value}</span>
-                                          <div className="flex items-center gap-2">
-                                            <div className="w-24 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                              <div 
-                                                className="h-full bg-indigo-500 rounded-full" 
-                                                style={{ width: `${(count / stats.count) * 100}%` }}
-                                              />
-                                            </div>
-                                            <span className="text-xs font-medium">
-                                              {Math.round((count / stats.count) * 100)}%
-                                            </span>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    );
-                  })}
-                </Accordion>
-              </CardContent>
-            </Card>
+            <DataSummaryDeepPhenotype 
+              deepPhenotypeCategories={deepPhenotypeCategories}
+              data={data}
+              calculateDeepPhenotypeStats={calculateDeepPhenotypeStats}
+            />
           </TabsContent>
         )}
         
@@ -418,50 +208,20 @@ const DataSummary = () => {
         </TabsContent>
       </Tabs>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Data Overview</CardTitle>
-          <CardDescription>Overall statistics about the dataset</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <h3 className="font-medium">Demographics</h3>
-              <ul className="mt-2 space-y-1 text-sm">
-                <li>Total Participants: {totalParticipants}</li>
-                <li>Gender Groups: {Object.keys(genderCounts).length}</li>
-                <li>Age Range: {minAge} - {maxAge} years (avg: {avgAge})</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-medium">Clinical</h3>
-              <ul className="mt-2 space-y-1 text-sm">
-                <li>Clinical Units: {Object.keys(unitCounts).length}</li>
-                <li>Conditions: {Object.keys(conditionCounts).length}</li>
-                <li>Outcome Types: {Object.keys(outcomeCounts).length}</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-medium">Measurements</h3>
-              <ul className="mt-2 space-y-1 text-sm">
-                <li>Avg. Measurements/Patient: {avgMeasurements}</li>
-                <li>Avg. Treatments/Patient: {avgTreatments}</li>
-                <li>Avg. Length of Stay: {avgLOS} days</li>
-              </ul>
-            </div>
-          </div>
-          
-          {hasDeepPhenotype && (
-            <Alert className="mt-4">
-              <InfoIcon className="h-4 w-4" />
-              <AlertTitle>Deep Phenotyping Data Available</AlertTitle>
-              <AlertDescription>
-                This dataset includes enhanced patient phenotyping data. Go to the "Deep Phenotyping" tab to explore these variables.
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
+      <DataSummaryOverview 
+        totalParticipants={totalParticipants}
+        genderCounts={genderCounts}
+        unitCounts={unitCounts}
+        conditionCounts={conditionCounts}
+        outcomeCounts={outcomeCounts}
+        minAge={minAge}
+        maxAge={maxAge}
+        avgAge={avgAge}
+        avgMeasurements={avgMeasurements}
+        avgTreatments={avgTreatments}
+        avgLOS={avgLOS}
+        hasDeepPhenotype={hasDeepPhenotype}
+      />
     </div>
   );
 };

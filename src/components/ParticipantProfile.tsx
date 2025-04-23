@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +12,7 @@ import {
   ResponsiveContainer,
   Legend 
 } from "recharts";
+import ClinicalNarrative from "@/components/ClinicalNarrative";
 
 interface ParticipantProfileProps {
   participant: any;
@@ -20,18 +20,24 @@ interface ParticipantProfileProps {
 
 const ParticipantProfile: React.FC<ParticipantProfileProps> = ({ participant }) => {
   // Format measurements for time series chart
-  const measurementsByType: Record<string, any[]> = participant.measurements.reduce(
-    (acc: Record<string, any[]>, measurement: any) => {
-      if (!acc[measurement.type]) acc[measurement.type] = [];
-      acc[measurement.type].push({
+  const measurementsByType: Record<string, any[]> = {};
+  
+  // Ensure measurements are initialized properly
+  if (participant.measurements && Array.isArray(participant.measurements)) {
+    participant.measurements.forEach((measurement: any) => {
+      if (!measurement || !measurement.type) return;
+      
+      if (!measurementsByType[measurement.type]) {
+        measurementsByType[measurement.type] = [];
+      }
+      
+      measurementsByType[measurement.type].push({
         timestamp: new Date(measurement.timestamp).toLocaleString(),
         value: measurement.value,
         type: measurement.type
       });
-      return acc;
-    },
-    {}
-  );
+    });
+  }
 
   // Sort measurements by timestamp
   Object.values(measurementsByType).forEach(measurements => {
@@ -77,6 +83,9 @@ const ParticipantProfile: React.FC<ParticipantProfileProps> = ({ participant }) 
 
   return (
     <div className="space-y-6">
+      {/* Add the Clinical Narrative at the top */}
+      <ClinicalNarrative participant={participant} />
+
       <Card>
         <CardHeader>
           <CardTitle>Participant Profile</CardTitle>
@@ -157,18 +166,22 @@ const ParticipantProfile: React.FC<ParticipantProfileProps> = ({ participant }) 
               <div className="space-y-3">
                 <div>
                   <p className="text-sm text-gray-500">Measurements Recorded</p>
-                  <p className="font-medium">{participant.measurements.length}</p>
+                  <p className="font-medium">{participant.measurements ? participant.measurements.length : 0}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Treatments Administered</p>
-                  <p className="font-medium">{participant.treatments.length}</p>
+                  <p className="font-medium">{participant.treatments ? participant.treatments.length : 0}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Measurement Types</p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {[...new Set(participant.measurements.map((m: any) => m.type))].map((type: string) => (
-                      <Badge key={type} variant="outline">{type}</Badge>
-                    ))}
+                    {participant.measurements && Array.isArray(participant.measurements) && 
+                      [...new Set(participant.measurements.map((m: any) => m.type))]
+                        .filter((type: string | undefined) => type !== undefined)
+                        .map((type: string) => (
+                          <Badge key={type} variant="outline">{type}</Badge>
+                        ))
+                    }
                   </div>
                 </div>
               </div>
