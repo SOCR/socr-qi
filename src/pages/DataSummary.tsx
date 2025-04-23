@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useData } from "@/context/DataContext";
 import { 
@@ -12,6 +13,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import NoDataMessage from "@/components/NoDataMessage";
 import MissingnessAnalysis from "@/components/MissingnessAnalysis";
 import TemporalTrends from "@/components/TemporalTrends";
+import DataCodeBook from "@/components/DataCodeBook";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
 
@@ -193,12 +195,13 @@ const DataSummary = () => {
       </div>
 
       <Tabs defaultValue="demographics" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-1 md:grid-cols-4">
+        <TabsList className="grid w-full grid-cols-1 md:grid-cols-5">
           <TabsTrigger value="demographics">Demographics</TabsTrigger>
           <TabsTrigger value="clinical">Clinical</TabsTrigger>
           {hasDeepPhenotype && (
             <TabsTrigger value="deepPhenotype">Deep Phenotyping</TabsTrigger>
           )}
+          <TabsTrigger value="dataCodeBook">Data Code Book</TabsTrigger>
           <TabsTrigger value="advanced">Advanced Analysis</TabsTrigger>
         </TabsList>
 
@@ -402,6 +405,10 @@ const DataSummary = () => {
             </Card>
           </TabsContent>
         )}
+        
+        <TabsContent value="dataCodeBook">
+          <DataCodeBook />
+        </TabsContent>
         
         <TabsContent value="advanced">
           <div className="space-y-6">

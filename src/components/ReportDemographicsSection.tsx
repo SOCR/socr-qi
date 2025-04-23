@@ -58,11 +58,18 @@ const ReportDemographicsSection: React.FC<ReportDemographicsSectionProps> = ({ d
           <div>
             <h3 className="font-medium">Gender Distribution</h3>
             <div className="mt-2 space-y-1 text-sm">
-              {Object.entries(genderCounts).map(([gender, count]) => (
-                <p key={gender}>
-                  {gender}: {count} ({Math.round((count / data.length) * 100)}%)
-                </p>
-              ))}
+              {Object.entries(genderCounts).map(([gender, count]) => {
+                // Ensure count is a number for the calculation
+                const percentage = typeof count === 'number' && data.length > 0 
+                  ? Math.round((count / data.length) * 100) 
+                  : 0;
+                  
+                return (
+                  <p key={gender}>
+                    {gender}: {count} ({percentage}%)
+                  </p>
+                );
+              })}
             </div>
           </div>
         </div>

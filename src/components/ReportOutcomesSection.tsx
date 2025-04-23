@@ -62,11 +62,18 @@ const ReportOutcomesSection: React.FC<ReportOutcomesSectionProps> = ({ data }) =
           <div>
             <h3 className="font-medium">Outcome Distribution</h3>
             <div className="mt-2 space-y-1 text-sm">
-              {Object.entries(outcomeCounts).map(([outcome, count]) => (
-                <p key={outcome}>
-                  {outcome}: {count} ({Math.round((count / data.length) * 100)}%)
-                </p>
-              ))}
+              {Object.entries(outcomeCounts).map(([outcome, count]) => {
+                // Ensure count is a number for the calculation
+                const percentage = typeof count === 'number' && data.length > 0 
+                  ? Math.round((count / data.length) * 100) 
+                  : 0;
+                  
+                return (
+                  <p key={outcome}>
+                    {outcome}: {count} ({percentage}%)
+                  </p>
+                );
+              })}
             </div>
           </div>
           

@@ -7,6 +7,7 @@ const tabs = [
   { name: "Data Summary", path: "/data-summary" },
   { name: "Data Visualization", path: "/data-visualization" },
   { name: "Analytics", path: "/analytics" },
+  { name: "Case Studies", path: "/case-studies" },
   { name: "Reports", path: "/reports" },
   { name: "About", path: "/about" },
 ];

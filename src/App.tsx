@@ -9,6 +9,7 @@ import DataImport from "./pages/DataImport";
 import DataSummary from "./pages/DataSummary";
 import DataVisualization from "./pages/DataVisualization";
 import Analytics from "./pages/Analytics";
+import CaseStudies from "./pages/CaseStudies";
 import Reports from "./pages/Reports";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="data-summary" element={<DataSummary />} />
             <Route path="data-visualization" element={<DataVisualization />} />
             <Route path="analytics" element={<Analytics />} />
+            <Route path="case-studies" element={<CaseStudies />} />
             <Route path="reports" element={<Reports />} />
             <Route path="about" element={<About />} />
           </Route>
