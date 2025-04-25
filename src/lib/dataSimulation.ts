@@ -1,4 +1,3 @@
-
 import { Participant } from "@/context/DataContext";
 
 // Utility function to get random element from array
@@ -62,6 +61,14 @@ const generateTimeSeriesValue = (
   }
 };
 
+// Define the interface for custom dependency relations
+export interface DependencyRelation {
+  targetVariable: string;
+  dependsOn: string[];
+  coefficients: number[];
+  noiseLevel: number;
+}
+
 export interface SimulationConfig {
   numParticipants: number;
   startDate: Date;
@@ -73,7 +80,8 @@ export interface SimulationConfig {
   timePatterns: 'random' | 'realistic';
   dataVariability: 'low' | 'medium' | 'high';
   outcomeDistribution: 'balanced' | 'positive' | 'negative';
-  enableDeepPhenotyping: boolean; // New option for deep patient phenotyping
+  enableDeepPhenotyping: boolean;
+  customDependencies?: DependencyRelation[]; // New option for custom variable dependencies
 }
 
 // Reference data for deep phenotyping
@@ -286,6 +294,77 @@ const generateDeepPhenotypingData = (config: SimulationConfig) => {
   return data;
 };
 
+// Apply custom dependency relations to calculate derived variables
+const applyCustomDependencies = (
+  participant: Participant, 
+  dependencies: DependencyRelation[],
+  participantsMap: Map<string, Participant>
+): Participant => {
+  if (!dependencies || dependencies.length === 0) {
+    return participant;
+  }
+
+  const updatedParticipant = { ...participant };
+  
+  dependencies.forEach(dependency => {
+    if (!dependency.targetVariable || dependency.dependsOn.length === 0) {
+      return;
+    }
+    
+    // Calculate the weighted sum of predictors
+    let value = 0;
+    
+    for (let i = 0; i < dependency.dependsOn.length; i++) {
+      const predictor = dependency.dependsOn[i];
+      if (!predictor) continue;
+      
+      const coefficient = dependency.coefficients[i] || 1.0;
+      
+      // Get the predictor value from the participant
+      let predictorValue;
+      
+      // Handle nested properties (e.g., deepPhenotype.qualityOfLifeScore)
+      if (predictor.includes('.')) {
+        const [obj, prop] = predictor.split('.');
+        predictorValue = participant[obj]?.[prop];
+      } else {
+        predictorValue = participant[predictor];
+      }
+      
+      // Skip if the predictor value doesn't exist
+      if (predictorValue === undefined) continue;
+      
+      // If predictor is an array or object, skip (we can only use numeric values)
+      if (typeof predictorValue !== 'number') continue;
+      
+      // Add weighted value to the sum
+      value += coefficient * predictorValue;
+    }
+    
+    // Add noise based on the specified level
+    if (dependency.noiseLevel > 0) {
+      const noise = getRandomNumber(
+        -dependency.noiseLevel * Math.abs(value), 
+        dependency.noiseLevel * Math.abs(value)
+      );
+      value += noise;
+    }
+    
+    // Assign the calculated value to the target variable
+    if (dependency.targetVariable.includes('.')) {
+      const [obj, prop] = dependency.targetVariable.split('.');
+      if (!updatedParticipant[obj]) {
+        updatedParticipant[obj] = {};
+      }
+      updatedParticipant[obj][prop] = value;
+    } else {
+      updatedParticipant[dependency.targetVariable] = value;
+    }
+  });
+  
+  return updatedParticipant;
+};
+
 export const simulateData = (config: SimulationConfig): Participant[] => {
   console.log("simulateData called with:", config);
   
@@ -368,8 +447,12 @@ export const simulateData = (config: SimulationConfig): Participant[] => {
   }
 
   const participants: Participant[] = [];
+  // Map to store participants by ID for easy lookup when applying dependencies
+  const participantsMap = new Map<string, Participant>();
 
+  // First pass: create participants without applying dependencies
   for (let i = 0; i < config.numParticipants; i++) {
+    // Generate participant base data
     const participantId = `P${(i + 1).toString().padStart(4, '0')}`;
     const age = getRandomInt(18, 90);
     const gender = getRandomElement(genders);
@@ -556,7 +639,22 @@ export const simulateData = (config: SimulationConfig): Participant[] => {
     }
     
     participants.push(participant);
+    participantsMap.set(participantId, participant);
   }
   
+  // Second pass: Apply custom dependencies if specified
+  if (config.customDependencies && config.customDependencies.length > 0) {
+    console.log("Applying custom dependencies:", config.customDependencies);
+    
+    // Create a copy of the participants array to modify
+    const participantsWithDependencies = participants.map(participant => 
+      applyCustomDependencies(participant, config.customDependencies || [], participantsMap)
+    );
+    
+    // Return the modified participants
+    return participantsWithDependencies;
+  }
+  
+  // Return original participants if no dependencies were applied
   return participants;
 };

@@ -1,5 +1,6 @@
+
 import React, { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { simulateData, SimulationConfig } from "@/lib/dataSimulation";
+import { simulateData, SimulationConfig, DependencyRelation } from "@/lib/dataSimulation";
 
 export interface Participant {
   id: string;
@@ -28,7 +29,7 @@ export interface Participant {
   }[];
   comorbidities?: string[];
   deepPhenotype?: Record<string, any>; // Add support for deep phenotyping data
-  [key: string]: any;
+  [key: string]: any; // Allow for dynamic properties from custom dependencies
 }
 
 interface DataContextType {
@@ -75,7 +76,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
     timePatterns: 'realistic',
     dataVariability: 'medium',
     outcomeDistribution: 'balanced',
-    enableDeepPhenotyping: false // Default to false for the new option
+    enableDeepPhenotyping: false, // Default to false for deep phenotyping
+    customDependencies: [] // Initialize empty array for custom dependencies
   };
   
   const [simulationOptions, setSimulationOptions] = useState<SimulationConfig>(() => {
@@ -87,7 +89,8 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
         ...parsedOptions,
         startDate: new Date(parsedOptions.startDate),
         endDate: new Date(parsedOptions.endDate),
-        enableDeepPhenotyping: parsedOptions.enableDeepPhenotyping || false // Handle old stored options
+        enableDeepPhenotyping: parsedOptions.enableDeepPhenotyping || false, // Handle old stored options
+        customDependencies: parsedOptions.customDependencies || [] // Handle old stored options
       };
     }
     return defaultOptions;
@@ -115,10 +118,14 @@ export const DataProvider = ({ children }: { children: ReactNode }) => {
       const startDate = options.startDate instanceof Date ? options.startDate : new Date(options.startDate);
       const endDate = options.endDate instanceof Date ? options.endDate : new Date(options.endDate);
       
+      // Ensure custom dependencies are properly handled
+      const customDependencies = options.customDependencies || [];
+      
       const simulatedData = simulateData({
         ...options,
         startDate,
-        endDate
+        endDate,
+        customDependencies
       });
       
       console.log("Simulated data generated:", simulatedData.length, "participants");

@@ -16,7 +16,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { CalendarIcon, DatabaseIcon } from "lucide-react";
+import { CalendarIcon, DatabaseIcon, PlusIcon, MinusIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
   Select, 
@@ -25,7 +25,14 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { SimulationConfig } from "@/lib/dataSimulation";
+import { SimulationConfig, DependencyRelation } from "@/lib/dataSimulation";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 
 const DataImportForm = () => {
   const { generateSimulatedData, simulationOptions, setSimulationOptions } = useData();
@@ -34,6 +41,21 @@ const DataImportForm = () => {
   const [localOptions, setLocalOptions] = useState<SimulationConfig>(simulationOptions);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [showDeepPhenotyping, setShowDeepPhenotyping] = useState(false);
+  const [showCustomDependencies, setShowCustomDependencies] = useState(false);
+
+  // Predefined variable options for dependencies
+  const variableOptions = [
+    { value: "age", label: "Age" },
+    { value: "riskScore", label: "Risk Score" },
+    { value: "lengthOfStay", label: "Length of Stay" },
+    { value: "readmissionRisk", label: "Readmission Risk" },
+    { value: "bloodPressureSystolic", label: "Blood Pressure (Systolic)" },
+    { value: "bloodPressureDiastolic", label: "Blood Pressure (Diastolic)" },
+    { value: "heartRate", label: "Heart Rate" },
+    { value: "temperature", label: "Temperature" },
+    { value: "oxygenSaturation", label: "Oxygen Saturation" },
+    { value: "pain", label: "Pain Level" },
+  ];
 
   // Update local options when the context options change
   useEffect(() => {
@@ -63,6 +85,95 @@ const DataImportForm = () => {
       ...prev,
       [key]: value
     }));
+  };
+
+  // Add a new empty dependency relation
+  const addDependencyRelation = () => {
+    const newDependency: DependencyRelation = {
+      targetVariable: "",
+      dependsOn: [],
+      coefficients: [],
+      noiseLevel: 0.1
+    };
+    
+    const updatedDependencies = localOptions.customDependencies 
+      ? [...localOptions.customDependencies, newDependency]
+      : [newDependency];
+    
+    updateLocalOption('customDependencies', updatedDependencies);
+    setShowCustomDependencies(true);
+  };
+
+  // Remove a dependency relation by index
+  const removeDependencyRelation = (indexToRemove: number) => {
+    if (!localOptions.customDependencies) return;
+    
+    const updatedDependencies = localOptions.customDependencies.filter((_, index) => index !== indexToRemove);
+    updateLocalOption('customDependencies', updatedDependencies);
+  };
+
+  // Update a property of a specific dependency relation
+  const updateDependencyRelation = (index: number, key: keyof DependencyRelation, value: any) => {
+    if (!localOptions.customDependencies) return;
+    
+    const updatedDependencies = [...localOptions.customDependencies];
+    updatedDependencies[index] = {
+      ...updatedDependencies[index],
+      [key]: value
+    };
+    
+    updateLocalOption('customDependencies', updatedDependencies);
+  };
+
+  // Add a predictor variable to a dependency relation
+  const addPredictorVariable = (dependencyIndex: number) => {
+    if (!localOptions.customDependencies) return;
+    
+    const updatedDependencies = [...localOptions.customDependencies];
+    const currentDependency = updatedDependencies[dependencyIndex];
+    
+    updatedDependencies[dependencyIndex] = {
+      ...currentDependency,
+      dependsOn: [...currentDependency.dependsOn, ""],
+      coefficients: [...currentDependency.coefficients, 1.0]
+    };
+    
+    updateLocalOption('customDependencies', updatedDependencies);
+  };
+
+  // Remove a predictor variable from a dependency relation
+  const removePredictorVariable = (dependencyIndex: number, predictorIndex: number) => {
+    if (!localOptions.customDependencies) return;
+    
+    const updatedDependencies = [...localOptions.customDependencies];
+    const currentDependency = updatedDependencies[dependencyIndex];
+    
+    updatedDependencies[dependencyIndex] = {
+      ...currentDependency,
+      dependsOn: currentDependency.dependsOn.filter((_, i) => i !== predictorIndex),
+      coefficients: currentDependency.coefficients.filter((_, i) => i !== predictorIndex)
+    };
+    
+    updateLocalOption('customDependencies', updatedDependencies);
+  };
+
+  // Update a specific predictor variable or coefficient
+  const updatePredictorVariable = (dependencyIndex: number, predictorIndex: number, variable: string) => {
+    if (!localOptions.customDependencies) return;
+    
+    const updatedDependencies = [...localOptions.customDependencies];
+    updatedDependencies[dependencyIndex].dependsOn[predictorIndex] = variable;
+    
+    updateLocalOption('customDependencies', updatedDependencies);
+  };
+
+  const updateCoefficient = (dependencyIndex: number, predictorIndex: number, value: number) => {
+    if (!localOptions.customDependencies) return;
+    
+    const updatedDependencies = [...localOptions.customDependencies];
+    updatedDependencies[dependencyIndex].coefficients[predictorIndex] = value;
+    
+    updateLocalOption('customDependencies', updatedDependencies);
   };
 
   return (
@@ -346,6 +457,182 @@ const DataImportForm = () => {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* New Variable Dependencies Section */}
+            <Accordion
+              type="single"
+              collapsible
+              value={showCustomDependencies ? "dependencies" : ""}
+              onValueChange={(val) => setShowCustomDependencies(val === "dependencies")}
+            >
+              <AccordionItem value="dependencies">
+                <AccordionTrigger className="font-medium text-blue-600">
+                  Custom Variable Dependencies
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4 pt-2">
+                    <div className="text-sm">
+                      Define explicit dependencies between variables in the simulated data.
+                      For example, create risk scores that depend on specific vital signs or demographic factors.
+                    </div>
+                    
+                    <Button 
+                      variant="outline"
+                      size="sm"
+                      onClick={addDependencyRelation}
+                      className="flex items-center gap-1"
+                    >
+                      <PlusIcon size={14} />
+                      Add Variable Dependency
+                    </Button>
+                    
+                    {localOptions.customDependencies?.map((dependency, dependencyIndex) => (
+                      <div key={dependencyIndex} className="border rounded-md p-3 bg-gray-50 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium">Dependency #{dependencyIndex + 1}</h4>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => removeDependencyRelation(dependencyIndex)}
+                            className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <MinusIcon size={14} />
+                          </Button>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          <div>
+                            <Label htmlFor={`target-variable-${dependencyIndex}`}>Target Variable</Label>
+                            <Select
+                              value={dependency.targetVariable}
+                              onValueChange={(value) => updateDependencyRelation(dependencyIndex, 'targetVariable', value)}
+                            >
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Select target variable" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {variableOptions.map(option => (
+                                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Label>Predictor Variables</Label>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => addPredictorVariable(dependencyIndex)}
+                                className="h-6 flex items-center gap-1 text-blue-600"
+                              >
+                                <PlusIcon size={12} />
+                                Add
+                              </Button>
+                            </div>
+                            
+                            {dependency.dependsOn.map((predictor, predictorIndex) => (
+                              <div key={predictorIndex} className="flex items-end gap-2 bg-white p-2 rounded border">
+                                <div className="flex-1">
+                                  <Label htmlFor={`predictor-${dependencyIndex}-${predictorIndex}`} className="text-xs">
+                                    Variable
+                                  </Label>
+                                  <Select
+                                    value={predictor}
+                                    onValueChange={(value) => updatePredictorVariable(dependencyIndex, predictorIndex, value)}
+                                  >
+                                    <SelectTrigger className="mt-1">
+                                      <SelectValue placeholder="Select variable" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {variableOptions.map(option => (
+                                        <SelectItem key={option.value} value={option.value}>
+                                          {option.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                
+                                <div className="w-24">
+                                  <Label htmlFor={`coefficient-${dependencyIndex}-${predictorIndex}`} className="text-xs">
+                                    Coefficient
+                                  </Label>
+                                  <Input
+                                    id={`coefficient-${dependencyIndex}-${predictorIndex}`}
+                                    type="number"
+                                    value={dependency.coefficients[predictorIndex]}
+                                    onChange={(e) => updateCoefficient(
+                                      dependencyIndex,
+                                      predictorIndex,
+                                      parseFloat(e.target.value) || 0
+                                    )}
+                                    className="mt-1"
+                                    step="0.1"
+                                  />
+                                </div>
+                                
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removePredictorVariable(dependencyIndex, predictorIndex)}
+                                  className="h-8 w-8 text-red-500 mb-1"
+                                >
+                                  <MinusIcon size={14} />
+                                </Button>
+                              </div>
+                            ))}
+                            
+                            {dependency.dependsOn.length === 0 && (
+                              <div className="text-sm text-gray-500 italic p-1">
+                                No predictor variables defined yet
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <Label htmlFor={`noise-level-${dependencyIndex}`}>
+                              Noise Level: {(dependency.noiseLevel * 100).toFixed(0)}%
+                            </Label>
+                            <Slider
+                              id={`noise-level-${dependencyIndex}`}
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              value={[dependency.noiseLevel]}
+                              onValueChange={(values) => 
+                                updateDependencyRelation(dependencyIndex, 'noiseLevel', values[0])
+                              }
+                            />
+                          </div>
+                          
+                          {dependency.targetVariable && dependency.dependsOn.length > 0 && (
+                            <div className="text-xs bg-gray-100 p-2 rounded border mt-2">
+                              <span className="font-medium">Formula:</span> {dependency.targetVariable} = 
+                              {dependency.dependsOn.map((variable, idx) => (
+                                <Badge key={idx} variant="outline" className="mx-1">
+                                  {dependency.coefficients[idx]} × {variable || "?"}
+                                </Badge>
+                              ))}
+                              {dependency.noiseLevel > 0 && (
+                                <span> + noise({(dependency.noiseLevel * 100).toFixed(0)}%)</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {(localOptions.customDependencies?.length || 0) === 0 && (
+                      <div className="text-sm text-gray-500 italic">
+                        No custom dependencies defined yet. Click "Add Variable Dependency" to create one.
+                      </div>
+                    )}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         )}
         
