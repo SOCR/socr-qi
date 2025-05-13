@@ -1,4 +1,3 @@
-
 /**
  * Main data simulation module
  */
@@ -18,7 +17,7 @@ import { generateDeepPhenotypingData } from "./simulation/deepPhenotype";
 import { applyCustomDependencies } from "./simulation/dependencies";
 
 // Re-export types for external use
-export { SimulationConfig, DependencyRelation };
+export type { SimulationConfig, DependencyRelation };
 
 export const simulateData = (config: SimulationConfig): Participant[] => {
   console.log("simulateData called with:", config);
